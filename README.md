@@ -25,7 +25,9 @@
   - I think about 80% of unique tags which is counted with count-unique-tag-num.py is better
     - EX: unique tags count is 1000 -> 0.8 * 1000 -> 800 num_topics (dimension)
   - This takes quite a while...
-    - Take 5 min for 1000 files in my case
+    - Take several sec only for 1000 files and reduction from 800 to 700 dimension case
+    - But, in 330k files and from 8000 to 5000 dimension case, about 1 hour is taken
+      - files are not for demo :)
     - LSI processing: dimension reduction about 800 dimenstion to 700 dimension  
 - $ streamlit run web-ui-image-search-lsi.py
   - Search app is opend on your web brower
