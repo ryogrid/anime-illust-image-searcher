@@ -1,7 +1,7 @@
 # local-illust-image-searcher
 ## About
 - Local illustration image file search engine with ML technique
-  - Can be used for photos. but flexible photo search is offered by Google photo or etc :)
+  - Can be used for photos. but flexible photo search is offered by Google Photos or etc :)
 - Search capabilities of cloud photo album services are poor for some reason
 - So, I wrote simple scripts
 
