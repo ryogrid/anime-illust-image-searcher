@@ -11,7 +11,7 @@
   - You can find image files using tags which is difficult for tagging because search index is applyed LSI
 
 ## Usage
-- $ pip install -r requirements.py
+- $ pip install -r requirements.txt
 - $ python make-tags-with-wd-tagger.py --dir "IMAGE FILES CONTAINED DIR PATH"
   - The script searches directory structure recursively :)
   - This takes quite a while...
