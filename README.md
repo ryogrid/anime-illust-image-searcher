@@ -39,8 +39,8 @@
 - ["WD ViT Tagger v3" model](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) is used for image file tagging
 - **I thank to great works of SmilingWolf**
 
-## Screenshot
-- I used about 1000 image files collected from [Irasutoya](https://www.irasutoya.com/) which offers free image materials
+## Screenshot of Demo
+- I used about 1000 image files collected from [Irasutoya](https://www.irasutoya.com/) which offers free image materials as search target example
   - Note: image materials of Irasutoya have restrictions for commercial purposes
 
 ![image](https://github.com/user-attachments/assets/3e3a6dce-b3aa-491f-8727-52282821ac7f)
