@@ -10,7 +10,7 @@
 - LSI is used for covering tagging presision
   - You can find image files using tags which is difficult for tagging because search index is applyed LSI
   - implemented with Gensim lib
-- ( Web UI is implemented with StremmLit )
+- ( Web UI is implemented with StremLit )
 
 ## Usage
 - $ pip install -r requirements.txt
