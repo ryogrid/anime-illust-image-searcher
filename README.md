@@ -16,6 +16,7 @@
   - The script searches directory structure recursively :)
   - This takes quite a while...
     - About 1 file/s at middle spec desktop PC (GPU is not used)
+      - AMD Ryzen 7 5700X 8-Core Processor 4.50 GHz
   - Image files and its tags are saved to tags-wd-tagger.txt
 - $ python count-unique-tag-num.py
   - => for deciding appropriate dimension scale fitting your data
