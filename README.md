@@ -30,7 +30,7 @@
   - Search app is opend on your web brower
 
 ## Screenshot
-- I used about 1000 image files collected from [Irasutoya](https://www.irasutoya.com/) which offers free image material
+- I used about 1000 image files collected from [Irasutoya](https://www.irasutoya.com/) which offers free image materials
   - Note: image materials of Irasutoya have restrictions for commercial purposes
 
 ![image](https://github.com/user-attachments/assets/3e3a6dce-b3aa-491f-8727-52282821ac7f)
