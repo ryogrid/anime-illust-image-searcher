@@ -7,7 +7,7 @@ import pickle
 import argparse
 import streamlit as st
 
-# $ streamlit run web_ui_image_search_lsi.py
+# $ streamlit run web-ui-image-search-lsi.py
 
 ss = st.session_state
 search_tags = ''
