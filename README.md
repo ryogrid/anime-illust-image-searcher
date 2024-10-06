@@ -26,7 +26,7 @@
   - This takes quite a while...
     - Take 5 min for 1000 files in my case
     - LSI processing: dimension reduction about 800 dimenstion to 700 dimension  
-- $ streamlit run web_ui_image_search_lsi.py
+- $ streamlit run web-ui-image-search-lsi.py
   - Search app is opend on your web brower
 
 ## Screenshot
