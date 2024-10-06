@@ -25,12 +25,17 @@
   - I think about 80% of unique tags which is counted with count-unique-tag-num.py is better
     - EX: unique tags count is 1000 -> 0.8 * 1000 -> 800 num_topics (dimension)
   - This takes quite a while...
+    - LSI processing: dimension reduction about 800 dimenstion to 700 dimension
     - Take several sec only for 1000 files and reduction from 800 to 700 dimension case
     - But, in 330k files and from 8000 to 5000 dimension case, about 1 hour is taken
       - files are not for demo :)
-    - LSI processing: dimension reduction about 800 dimenstion to 700 dimension  
 - $ streamlit run web-ui-image-search-lsi.py
   - Search app is opend on your web brower
+
+## Information related to copylight
+- I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
+- ["WD ViT Tagger v3" model](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) is used for image file tagging
+- **I thank to great works of SmilingWolf**
 
 ## Screenshot
 - I used about 1000 image files collected from [Irasutoya](https://www.irasutoya.com/) which offers free image materials
@@ -38,9 +43,7 @@
 
 ![image](https://github.com/user-attachments/assets/3e3a6dce-b3aa-491f-8727-52282821ac7f)
 ![image](https://github.com/user-attachments/assets/3e66dd5e-7e68-4c68-9d29-884d08ae1e18)
+![image](https://github.com/user-attachments/assets/5a6ec06f-879b-42ab-90fe-533a0d611072)
 
 
-## Information related to copylight
-- I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
-- ["WD ViT Tagger v3" model](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) is used for image file tagging
-- **I thank to great works of SmilingWolf**
+
