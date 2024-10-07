@@ -1,4 +1,4 @@
-# local-illust-image-searcher
+# Local Illustlation Image File Searcher
 ## What's This?
 - Local illustration image file search engine with ML technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
