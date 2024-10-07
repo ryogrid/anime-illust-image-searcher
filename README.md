@@ -27,8 +27,8 @@
   - I think about 80% of unique tags which is counted with count-unique-tag-num.py is better
     - EX: unique tags count is 1000 -> 0.8 * 1000 -> 800 num_topics (dimension)
   - This takes quite a while...
-    - LSI processing: dimension reduction about 800 dimenstion to 700 dimension
-    - Take several sec only for 1000 files and reduction from 800 to 700 dimension case
+    - LSI processing: dimension reduction with [Singular Value Decomposition (SVD)](https://en.wikipedia.org/wiki/Singular_value_decomposition)
+    - Take several secs only for 1000 files and reduction from 800 to 700 dimension case (case of demo on later section)
     - But, in 330k files and from 8000 to 5000 dimension case, about 1 hour is taken
       - files are not for demo :)
 - $ streamlit run web-ui-image-search-lsi.py
