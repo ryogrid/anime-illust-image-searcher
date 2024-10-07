@@ -34,6 +34,12 @@
 - $ streamlit run web-ui-image-search-lsi.py
   - Search app is opend on your web browser
 
+## Tips (Attention)
+- Words (tags) which were not apeeared at tagging are not usable on query
+  - Solution
+    - Search words you want to use from taggs-wd-tagger.txt with grep, editor or something for existance checking
+    - If exist, there is no problem. If not, you should think similar words and search it in same manner :) 
+
 ## Information related to copylight
 - I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
 - ["WD ViT Tagger v3" model](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) is used for image file tagging
