@@ -1,5 +1,5 @@
 # local-illust-image-searcher
-## What's this?
+## What's This?
 - Local illustration image file search engine with ML technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
 - Search capabilities of cloud photo album services are poor for some reason
@@ -40,7 +40,7 @@
     - Search words you want to use from taggs-wd-tagger.txt with grep, editor or something for existance checking
     - If exist, there is no problem. If not, you should think similar words and search it in same manner :) 
 
-## Information related to copylight
+## Information Related to Copylights
 - I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
 - ["WD ViT Tagger v3" model](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) is used for image file tagging
 - **I thank to great works of SmilingWolf**
