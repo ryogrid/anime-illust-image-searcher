@@ -39,7 +39,7 @@
 - ["WD ViT Tagger v3" model](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) is used for image file tagging
 - **I thank to great works of SmilingWolf**
 
-## Screenshot of Demo
+## Screenshots of Demo
 - I used about 1000 image files collected from [Irasutoya](https://www.irasutoya.com/) which offers free image materials as search target example
   - Note: image materials of Irasutoya have restrictions for commercial purposes
 
