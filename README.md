@@ -32,7 +32,7 @@
     - But, in 330k files and from 8000 to 5000 dimension case, about 1 hour is taken
       - files are not for demo :)
 - $ streamlit run web-ui-image-search-lsi.py
-  - Search app is opend on your web brower
+  - Search app is opend on your web browser
 
 ## Information related to copylight
 - I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
