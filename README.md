@@ -47,7 +47,7 @@
 
 ## Screenshots of Demo
 - I used about 1000 image files collected from [Irasutoya](https://www.irasutoya.com/) which offers free image materials as search target example
-  - Note: image materials of Irasutoya have restrictions for commercial purposes
+  - Note: image materials of Irasutoya have restrictions at commercial purposes use
 - Partial tagging result: [./tagging_example.txt](/tagging_example.txt)
   - Generation script was executed in Windows
   - File paths in linked file have been partially masked
