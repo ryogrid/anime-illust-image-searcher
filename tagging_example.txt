@@ -1,0 +1,10 @@
+C:\<masked>\images\school_syougakukin_girl.png,1girl,solo,closed_eyes,smile,open_mouth,sparkle,red_bow,bow,red_bowtie,bowtie,black_hair,^_^,facing_viewer
+C:\<masked>\images\science_glass_pipette_supoito.png,no_humans,white_background,simple_background
+C:\<masked>\images\science_glass_pipette_supoito_rubber.png,simple_background,white_background,no_humans
+C:\<masked>\images\science_mess_flask.png,no_humans,simple_background,monochrome,white_background,bottle,solo
+C:\<masked>\images\science_mess_flask_full.png,no_humans,blue_theme,simple_background,white_background
+C:\<masked>\images\science_tojikan.png,no_humans,simple_background,monochrome,white_background
+C:\<masked>\images\seidouki_kane.png,no_humans,monochrome,simple_background,transparent_background
+C:\<masked>\images\seidouki_ken.png,simple_background,no_humans,still_life,weapon,sword,white_background,blue_theme,monochrome,from_side
+C:\<masked>\images\seiza_shibireru_man.png,1boy,male_focus,>_<,solo,seiza,black_hair,sitting
+C:\<masked>\images\seiza_shibireru_woman.png,1girl,>_<,solo,seiza,hands_on_lap,closed_eyes,sitting,wavy_mouth,simple_background,black_hair
