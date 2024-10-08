@@ -22,7 +22,7 @@
     - You may speed up with editing the script to use CUDAExecutionProvider, CoreMLExecutionProvider and etc :)
       - Plese see [here](https://onnxruntime.ai/docs/execution-providers/)
       - Performance key is processing speed of ONNX Runtime at your machine :)
-  - Image files and its tags are saved to tags-wd-tagger.txt
+  - Image files and tags of these are saved to tags-wd-tagger.txt
 - $ python count-unique-tag-num.py
   - => for deciding appropriate dimension scale fitting your data
 - $ python gen-lsi-model.py
