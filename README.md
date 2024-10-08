@@ -39,6 +39,10 @@
   - Solution
     - Search words you want to use from taggs-wd-tagger.txt with grep, editor or something for existance checking
     - If exist, there is no problem. If not, you should think similar words and search it in same manner :) 
+- File pathes cahactorcode 
+  - If file path contains charactors which can't be contered to Unicode or utf-8, scripts may ouput error message at processing the file
+  - But, it doesn't mean that your script usage is wrong. Though these files is ignored or not displayed at Web UI :|
+    - This is problem of current implentation. When you use scripts on Windows and charactor code of directory/file names isn't utf-8, the problem may occur
 
 ## Information Related to Copylights
 - I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
@@ -50,7 +54,7 @@
   - Note: image materials of Irasutoya have restrictions at commercial purposes use
 - Partial tagging result: [./tagging_example.txt](/tagging_example.txt)
   - Generation script was executed in Windows
-  - File paths in linked file have been partially masked
+  - File paths in linked file have been partially masked 
 
 ![image](https://github.com/user-attachments/assets/3e3a6dce-b3aa-491f-8727-52282821ac7f)
 ![image](https://github.com/user-attachments/assets/3e66dd5e-7e68-4c68-9d29-884d08ae1e18)
