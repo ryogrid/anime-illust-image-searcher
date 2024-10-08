@@ -5,6 +5,8 @@ import pickle
 
 import argparse
 import streamlit as st
+import time
+import streamlit.components.v1 as components
 
 # $ streamlit run web-ui-image-search-lsi.py
 
@@ -92,10 +94,50 @@ def convert_data_structure(image_info_list):
 
     return pages
 
+def get_all_images():
+    images = []
+    for page in ss['data']:
+        for row in page:
+            for image_info in row:
+                images.append(image_info['file_path'])
+    return images
+
+def slideshow():
+    images = get_all_images()
+    if len(images) == 0:
+        st.write("No images to display in slideshow.")
+        ss['slideshow_active'] = False
+        st.rerun()
+    if 'slideshow_index' not in ss:
+        ss['slideshow_index'] = 0
+    cols = st.columns([1])
+    cols[0].image(images[ss['slideshow_index']], use_column_width=True)
+    # Provide a 'Stop Slideshow' button
+    if st.button('Stop Slideshow'):
+        ss['slideshow_active'] = False
+        ss['slideshow_index'] = 0
+        st.rerun()
+    else:
+        # Wait for 5 seconds
+        time.sleep(5)
+        # Update the index
+        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
+        st.rerun()
+
+def is_now_slideshow():
+    return 'slideshow_active' in ss and ss['slideshow_active']
+
 def display_images():
     global ss
 
-    if len(ss['data']) > 0:
+    if 'data' in ss and len(ss['data']) > 0:
+        # Add the 'Start Slideshow' button in the upper-right corner
+        cols = st.columns([9, 1])
+        with cols[1]:
+            if st.button('Start Slideshow'):
+                ss['slideshow_active'] = True
+                ss['slideshow_index'] = 0
+                st.rerun()
         for data_per_page in ss['data'][ss['page_index']]:
             cols = st.columns(5)
             for col_index, col_ph in enumerate(cols):
@@ -200,16 +242,19 @@ def main():
 
     init_session_state()
 
-    # Input form
-    search_tags = st.text_input('Enter search tags', value='')
-    if st.button('Search'): 
-        show_search_result()
-        st.rerun()
-
-    if 'selected_image_info' in ss and ss['selected_image_info']:
-        display_selected_image()
+    if is_now_slideshow():
+        slideshow()
     else:
-        display_images()
-        pagination()
+        # Input form
+        search_tags = st.text_input('Enter search tags', value='')
+        if st.button('Search'):
+            show_search_result()
+            st.rerun()
+
+        if 'selected_image_info' in ss and ss['selected_image_info']:
+            display_selected_image()
+        else:
+            display_images()
+            pagination()
 
 main()
