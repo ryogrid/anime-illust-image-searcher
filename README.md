@@ -73,7 +73,7 @@
   - ![image](https://github.com/user-attachments/assets/6e324a1e-ae49-40de-9dbd-d040e153b837)
 - Search "standing animal"
   - ![image](https://github.com/user-attachments/assets/cd2862e3-e7e2-42fe-b830-705c778e10b8)
-- Image detail page
+- Image info page
   - ![image](https://github.com/user-attachments/assets/0cd8e9ee-bc90-4b11-9003-72d40b0a1fe7)
 - Slideshow feature
   - Auto slide in 5 sec period (roop)
