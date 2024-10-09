@@ -8,7 +8,7 @@
 ## Method
 - Image file tagging with Visual Transformar (ViT) and Latent Semantic Indexing (LSI)
 - LSI is used for covering tagging presision
-  - You can find image files using tags which is difficult for tagging because search index is applyed LSI
+  - You can use tags to search which are difficult for tagging because search index is applyed LSI
   - implemented with Gensim lib
 - ( Web UI is implemented with StreamLit )
 
