@@ -1,6 +1,6 @@
 # Local Illustlation Image Files Searcher
 ## What's This?
-- Local illustration image file search engine with ML technique
+- Local illustration image files search engine with ML technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
 - Search capabilities of cloud photo album services are poor for some reason
 - So, I wrote simple scripts
