@@ -110,19 +110,25 @@ def slideshow():
         st.rerun()
     if 'slideshow_index' not in ss:
         ss['slideshow_index'] = 0
-    #st.empty()
     cols = st.columns([1])
-    cols[0].image(images[ss['slideshow_index']], use_column_width=True)
+    
+    try:
+        cols[0].image(images[ss['slideshow_index']], use_column_width=True)
+    except Exception as e:
+        print(f'Error: {e}')
+        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
+        st.rerun()
+        return
     # Provide a 'Stop Slideshow' button
     if st.button('Stop'):
         ss['slideshow_active'] = False
         ss['slideshow_index'] = 0
+        ss['text_input'] = ss['last_search_tags']
     else:
         # Wait for 5 seconds
         time.sleep(5)
         # Update the index
-        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
-    ss['text_input'] = ss['last_search_tags']
+        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)    
     st.rerun()
 
 def is_now_slideshow():
