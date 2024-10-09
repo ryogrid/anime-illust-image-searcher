@@ -6,7 +6,6 @@ import pickle
 import argparse
 import streamlit as st
 import time
-import streamlit.components.v1 as components
 
 # $ streamlit run web-ui-image-search-lsi.py
 
@@ -51,6 +50,7 @@ def init_session_state(data=[]):
     global ss
     if 'data' not in ss:
         ss['data'] = []
+        ss['last_search_tags'] = ''
     if 'selected_image_info' not in ss:
         ss['selected_image_info'] = None
     if len(data) > 0:
@@ -110,19 +110,20 @@ def slideshow():
         st.rerun()
     if 'slideshow_index' not in ss:
         ss['slideshow_index'] = 0
+    #st.empty()
     cols = st.columns([1])
     cols[0].image(images[ss['slideshow_index']], use_column_width=True)
     # Provide a 'Stop Slideshow' button
-    if st.button('Stop Slideshow'):
+    if st.button('Stop'):
         ss['slideshow_active'] = False
         ss['slideshow_index'] = 0
-        st.rerun()
     else:
         # Wait for 5 seconds
         time.sleep(5)
         # Update the index
         ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
-        st.rerun()
+    ss['text_input'] = ss['last_search_tags']
+    st.rerun()
 
 def is_now_slideshow():
     return 'slideshow_active' in ss and ss['slideshow_active']
@@ -132,29 +133,34 @@ def display_images():
 
     if 'data' in ss and len(ss['data']) > 0:
         # Add the 'Start Slideshow' button in the upper-right corner
-        cols = st.columns([9, 1])
-        with cols[1]:
-            if st.button('Start Slideshow'):
+        #cols = st.columns([9, 1])
+        cols = st.columns([10])
+        with cols[0]:
+            if st.button('Slideshow'):
                 ss['slideshow_active'] = True
                 ss['slideshow_index'] = 0
                 st.rerun()
-        for data_per_page in ss['data'][ss['page_index']]:
-            cols = st.columns(5)
-            for col_index, col_ph in enumerate(cols):
-                try:
-                    image_info = data_per_page[col_index]
-                    key = f"img_{ss['page_index']}_{image_info['doc_id']}_{col_index}"
-                    # Make the image clickable
-                    if col_ph.button('info', key=key):
-                        ss['selected_image_info'] = image_info
-                        st.rerun()
-                    col_ph.image(image_info['file_path'], use_column_width=True)
-                except Exception as e:
-                    print(f'Error: {e}')
-                    continue
+                return
+
+            for data_per_page in ss['data'][ss['page_index']]:                
+                cols = st.columns(5)
+                for col_index, col_ph in enumerate(cols):
+                    try:
+                        image_info = data_per_page[col_index]
+                        key = f"img_{ss['page_index']}_{image_info['doc_id']}_{col_index}"
+                        # Make the image clickable
+                        if col_ph.button('info', key=key):
+                            ss['selected_image_info'] = image_info
+                            st.rerun()
+                        col_ph.image(image_info['file_path'], use_column_width=True)
+                    except Exception as e:
+                        print(f'Error: {e}')
+                        continue
+            pagination()
+
 
 def pagination():
-    col1, col2, col3 = st.columns([1, 8, 1])
+    col1, col2, col3 = st.columns([2, 8, 2])
     if col1.button('Prev'):
         update_index('page_index', -1)
     if col3.button('Next'):
@@ -181,6 +187,7 @@ def display_selected_image():
         st.write('  \n'.join(image_info['tags']))
     if st.button('Close'):
         ss['selected_image_info'] = None
+        ss['text_input'] = ss['last_search_tags']
         st.rerun()
 
 def show_search_result():
@@ -235,6 +242,7 @@ def load_model():
 def main():
     global search_tags
     global args
+    global ss
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--rep', nargs=2, required=False, help='replace the string in file path to one you want')
@@ -244,17 +252,16 @@ def main():
 
     if is_now_slideshow():
         slideshow()
-    else:
-        # Input form
-        search_tags = st.text_input('Enter search tags', value='')
-        if st.button('Search'):
-            show_search_result()
-            st.rerun()
-
+    else:        
         if 'selected_image_info' in ss and ss['selected_image_info']:
             display_selected_image()
         else:
-            display_images()
-            pagination()
+            # Input form
+            search_tags = st.text_input('Enter search tags', value='', key='text_input')            
+            if search_tags and ss['last_search_tags'] != search_tags:
+                ss['last_search_tags'] = search_tags
+                show_search_result()
+                st.rerun()            
+            display_images()            
 
 main()
