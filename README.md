@@ -2,7 +2,7 @@
 ## What's This?
 - Local illustration image files search engine with ML technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
-- Search capabilities of cloud photo album services are poor for some reason
+- Search capabilities of cloud photo album services towards illustration image files are poor for some reason
 - So, I wrote simple scripts
 
 ## Method
