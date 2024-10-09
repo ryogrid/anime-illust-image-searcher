@@ -59,9 +59,17 @@
   - Generation script was executed in Windows
   - File paths in linked file have been partially masked 
 
-![image](https://github.com/user-attachments/assets/3e3a6dce-b3aa-491f-8727-52282821ac7f)
-![image](https://github.com/user-attachments/assets/3e66dd5e-7e68-4c68-9d29-884d08ae1e18)
-![image](https://github.com/user-attachments/assets/5a6ec06f-879b-42ab-90fe-533a0d611072)
+
+- Search "standing"
+  - ![image](https://github.com/user-attachments/assets/6e324a1e-ae49-40de-9dbd-d040e153b837)
+- Search "standing animal"
+  - ![image](https://github.com/user-attachments/assets/cd2862e3-e7e2-42fe-b830-705c778e10b8)
+- Image detail page
+  - ![image](https://github.com/user-attachments/assets/0cd8e9ee-bc90-4b11-9003-72d40b0a1fe7)
+- Slideshow feature
+  - Auto slide in 5 sec period (roop)
+  - ![image](https://github.com/user-attachments/assets/ea42336f-6b59-402b-b19e-f10610e4b200)
+  
 
 
 
