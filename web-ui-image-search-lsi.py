@@ -138,8 +138,7 @@ def display_images():
     global ss
 
     if 'data' in ss and len(ss['data']) > 0:
-        # Add the 'Start Slideshow' button in the upper-right corner
-        #cols = st.columns([9, 1])
+        # Add the 'Slideshow' button in the upper-left corner
         cols = st.columns([10])
         with cols[0]:
             if st.button('Slideshow'):
