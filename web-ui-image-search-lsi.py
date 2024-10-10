@@ -111,7 +111,7 @@ def slideshow():
     if 'slideshow_index' not in ss:
         ss['slideshow_index'] = 0
     cols = st.columns([1])
-    
+
     try:
         cols[0].image(images[ss['slideshow_index']], use_column_width=True)
     except Exception as e:
@@ -187,6 +187,8 @@ def display_selected_image():
     with col1:
         st.image(image_info['file_path'], use_column_width=True)
     with col2:
+        st.write("Matching Score:")
+        st.write("{:.2f}%".format(image_info['similarity'] * 100))
         st.write("File Path:")
         st.code(image_info['file_path'])
         st.write("Tags:")
@@ -217,6 +219,7 @@ def show_search_result():
             found_docs_info.append({
                 'file_path': found_fpath,
                 'doc_id': doc_id,
+                'similarity': similarity,
                 # Assuming tags start from index 1
                 'tags': found_img_info_splited[1:]
             })
