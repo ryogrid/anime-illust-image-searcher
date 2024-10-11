@@ -1,6 +1,7 @@
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 import argparse, itertools
-import traceback, sys, re
+import traceback, sys, re, math, time
 
 import numpy as np
 from PIL import Image
@@ -47,6 +48,7 @@ class Predictor:
         self.preprocess = None
         self.tokenizer = None
 
+    """
     def prepare_image(self, image):
         target_size = self.model_target_size
 
@@ -80,6 +82,7 @@ class Predictor:
         image_array = image_array[:, :, ::-1]
 
         return np.expand_dims(image_array, axis=0)
+    """
 
     def load_model(self):
         if self.clip_model is not None:
@@ -87,16 +90,21 @@ class Predictor:
         
         self.model_target_size = IMAGE_SIZE
 
-        self.clip_model, self.preprocess = open_clip.create_model_from_pretrained('hf-hub:laion/CLIP-ViT-H-14-laion2B-s32B-b79K')
-        self.tokenizer = open_clip.get_tokenizer('hf-hub:laion/CLIP-ViT-H-14-laion2B-s32B-b79K')
+        self.clip_model, self.preprocess = open_clip.create_model_from_pretrained('hf-hub:' + CLIP_MODEL_REPO)
+        self.tokenizer = open_clip.get_tokenizer('hf-hub:' + CLIP_MODEL_REPO)
 
     def get_feature_vectors(
         self,
         images, # already prepared images
     ):
-        cated_images = torch.cat(images, dim=0)
-        with torch.no_grad(), torch.cuda.amp.autocast():
-            return self.clip_model.get_image_features(cated_images)
+        ret_vectors = []
+        with torch.no_grad(): #, torch.cuda.amp.autocast():
+            for image in images:
+                image_features = self.clip_model.encode_image(image)
+                image_features /= image_features.norm(dim=-1, keepdim=True)
+                ret_vectors.append(image_features)
+            return ret_vectors
+
 
     # write lines to file
     def write_to_file(self, lines):    
@@ -106,10 +114,8 @@ class Predictor:
 
     def create_vector_index(self, feature_vectors):
         # Create vector index with Faiss
-        quantizer = faiss.IndexFlatL2(EMBED_DIM)
-        index = faiss.IndexIVFFlat(quantizer, EMBED_DIM, 5)        
+        index = faiss.IndexFlatIP(EMBED_DIM)
         feature_vectors_for_faiss = torch.cat(feature_vectors).detach().numpy()
-        index.train(feature_vectors_for_faiss)
         index.add(feature_vectors_for_faiss)
         faiss.write_index(index, INDEX_FNAME)
 
@@ -127,6 +133,7 @@ class Predictor:
         idx = 0
         cnt = 0
         last_cnt = 0
+        start = time.perf_counter()
         # process each image file in batch
         while True:
             path_batch = list(itertools.islice(file_list, idx, idx + BATCH_SIZE))
@@ -140,7 +147,7 @@ class Predictor:
             for file_path in path_batch:
                 try:
                     img = Image.open(file_path)
-                    img = self.prepare_image(img)
+                    #img = self.prepare_image(img)
                     img = self.preprocess(img).unsqueeze(0)
                     images.append(img)
                     indexed_file_pathes.append(file_path)
@@ -153,16 +160,22 @@ class Predictor:
                     pass            
 
             feature_vectors = self.get_feature_vectors(images)
-            feature_vectors_all.append(feature_vectors)
-            
+            feature_vectors_all.extend(feature_vectors)
+
             # Write vectorized image filepathes to file each time
             self.write_to_file(indexed_file_pathes)
 
-            if cnt - last_cnt >= 100:
-                print(f'{cnt} files processed')
-                last_cnt = cnt
-
             cnt += len(feature_vectors)
+
+            if cnt - last_cnt >= 100:
+                now = time.perf_counter()
+                print(f'{cnt} files processed')
+                diff = now - start
+                print('{:.2f} seconds elapsed'.format(diff))
+                time_per_file = diff / cnt
+                print('{:.4f} seconds per file'.format(time_per_file))
+                last_cnt = cnt
+                os.stdout.flush()
 
         self.create_vector_index(feature_vectors_all)
 

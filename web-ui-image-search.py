@@ -1,21 +1,28 @@
-from gensim.models.lsimodel import LsiModel
-from gensim.utils import simple_preprocess
-from gensim.similarities import MatrixSimilarity
-import pickle
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+import open_clip
+import faiss
 
 import argparse
 import streamlit as st
 import time
 
-# $ streamlit run web-ui-image-search-lsi.py
+# $ streamlit run web-ui-image-search.py
 
 ss = st.session_state
 search_tags = ''
-image_files_name_tags_arr = []
+indexed_file_pathes = []
+
 args = None
-model = None
+
+clip_model = None
+tokenizer = None
 index = None
-dictionary = None
+
+CLIP_MODEL_REPO = 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K'
+
+INDEX_FNAME = 'clip-index'
+INDEX_FPATHES_FNAME = 'clip-index-fpathes.txt'
 
 def mcut_threshold(scores):
     """
@@ -24,38 +31,33 @@ def mcut_threshold(scores):
     for Multi-label Classification. In 11th International Symposium, IDA 2012
     (pp. 172-183).
     """
-    sorted_scores = scores[scores.argsort()[::-1]]
+    sorted_scores = scores[scores.argsort()[:-1]]
     difs = sorted_scores[:-1] - sorted_scores[1:]
     t = difs.argmax()
     thresh = (sorted_scores[t] + sorted_scores[t + 1]) / 2
     return thresh
 
-def find_similar_documents(model, new_doc, topn=50):
-    # Vectorize the query
-    query_bow = dictionary.doc2bow(simple_preprocess(new_doc))
-    query_lsi = model[query_bow]
+def find_similar_documents(query, topn=50):
+    query_tok = tokenizer(query)
+    query_vec = clip_model.encode_text(query_tok)
+    query_vec /= query_vec.norm(dim=-1, keepdim=True)
+    query_vec = query_vec.detach().numpy()
+    topn = len(indexed_file_pathes) if topn > len(indexed_file_pathes) else topn
+    result_sims, result_idxes = index.search(query_vec, topn)
 
-    # Calculate similarities
-    sims = index[query_lsi]
+    thresh = mcut_threshold(result_sims[0])
+    print(f'Threshold: {thresh}')
 
-    # Sort results
-    sims = sorted(enumerate(sims), key=lambda item: -item[1])    
-    sims_filtered = [x for x in sims if x[1] > 0.1]
-    if len(sims_filtered) > 30:
-        sims = sims_filtered
-    else:
-        sims = sims[:30]
+    result_sims = result_sims[0].tolist()
+    result_idxes = result_idxes[0].tolist()
+
+    pairs = [(idx - 1, sim) for idx, sim in zip(result_idxes, result_sims) if idx > 0 and sim > thresh]
+    pairs = sorted(pairs, key=lambda x: -1 * x[1])
 
     ret_len = topn
-    if ret_len > len(sims):
-        ret_len = len(sims)    
-    return sims[:ret_len]
-
-def is_include_ng_word(tags):
-    for ng_word in NG_WORDS:
-        if ng_word in tags:
-            return True
-    return False
+    if ret_len > len(pairs):
+        ret_len = len(pairs)
+    return pairs[:ret_len]
 
 def init_session_state(data=[]):
     global ss
@@ -163,7 +165,7 @@ def display_images():
                 for col_index, col_ph in enumerate(cols):
                     try:
                         image_info = data_per_page[col_index]
-                        key = f"img_{ss['page_index']}_{image_info['doc_id']}_{col_index}"
+                        key = f"img_{ss['page_index']}_{image_info['image_id']}_{col_index}"
                         # Make the image clickable
                         if col_ph.button('info', key=key):
                             ss['selected_image_info'] = image_info
@@ -198,11 +200,9 @@ def display_selected_image():
         st.image(image_info['file_path'], use_column_width=True)
     with col2:
         st.write("Matching Score:")
-        st.write("{:.2f}%".format(image_info['similarity'] * 100))
+        st.write("{:.2f}".format(image_info['score'] * 100))
         st.write("File Path:")
         st.code(image_info['file_path'])
-        st.write("Tags:")
-        st.write('  \n'.join(image_info['tags']))
     if st.button('Close'):
         ss['selected_image_info'] = None
         ss['text_input'] = ss['last_search_tags']
@@ -213,25 +213,20 @@ def show_search_result():
     global args
 
     load_model()
-    similar_docs = find_similar_documents(model, search_tags, topn=2000) 
+    find_result = find_similar_documents(search_tags, topn=2000) 
 
     found_docs_info = []
-    for doc_id, similarity in similar_docs:
+    for image_id, score in find_result:
         try:
-            found_img_info_splited = image_files_name_tags_arr[doc_id].split(',')
-            if is_include_ng_word(found_img_info_splited):
-                continue
-            print(f'Image ID: {doc_id}, Similarity: {similarity}, Tags: {image_files_name_tags_arr[doc_id]}')
-            found_fpath = found_img_info_splited[0]
+            found_fpath = indexed_file_pathes[image_id]
+            print(f'Image ID: {image_id}, Score: {score}, Filepath: {found_fpath}')
             if args.rep:
                 found_fpath = found_fpath.replace(args.rep[0], args.rep[1])
             # Collect image info
             found_docs_info.append({
                 'file_path': found_fpath,
-                'doc_id': doc_id,
-                'similarity': similarity,
-                # Assuming tags start from index 1
-                'tags': found_img_info_splited[1:]
+                'image_id': image_id,
+                'score': score,
             })
         except Exception as e:
             print(f'Error: {e}')
@@ -241,22 +236,21 @@ def show_search_result():
     init_session_state(pages)
 
 def load_model():
-    global model
-    global image_files_name_tags_arr
+    global clip_model, tokenizer
+    global indexed_file_pathes
     global index
-    global dictionary
 
     # Load index text file to show images
-    tag_file_path = 'tags-wd-tagger_lsi_idx.csv'
-    image_files_name_tags_arr = []
-    with open(tag_file_path, 'r', encoding='utf-8') as f:
+    indexed_file_pathes = []
+    with open(INDEX_FPATHES_FNAME, 'r', encoding='utf-8') as f:
         for line in f:
-            image_files_name_tags_arr.append(line.strip())
+            indexed_file_pathes.append(line.strip())
 
     # Load model and others
-    model = LsiModel.load("lsi_model")
-    index = MatrixSimilarity.load("lsi_index")
-    dictionary = pickle.load(open("lsi_dictionary", "rb"))
+    clip_model, _ = open_clip.create_model_from_pretrained('hf-hub:' + CLIP_MODEL_REPO)
+    tokenizer = open_clip.get_tokenizer('hf-hub:' + CLIP_MODEL_REPO)    
+    index = faiss.read_index(INDEX_FNAME)
+
 
 def main():
     global search_tags
