@@ -1,33 +1,21 @@
 import os
+import argparse, itertools
+import traceback, sys, re
+
 import numpy as np
 from PIL import Image
-import argparse
-import traceback, sys
-import re
 import faiss
-import open_clip
+import open_clip, torch
 
 CLIP_MODEL_REPO = 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K'
 EMBED_DIM = 1024
 IMAGE_SIZE = 224
 INDEX_FNAME = 'clip-index'
 INDEX_FPATHES_FNAME = 'clip-index-fpathes.txt'
+BATCH_SIZE = 50
 
 # extensions of image files to be processed
 EXTENSIONS = ['.png', '.jpg', '.jpeg', ".PNG", ".JPG", ".JPEG"]
-
-def mcut_threshold(scores):
-    """
-    Maximum Cut Thresholding (MCut)
-    Largeron, C., Moulin, C., & Gery, M. (2012). MCut: A Thresholding Strategy
-    for Multi-label Classification. In 11th International Symposium, IDA 2012
-    (pp. 172-183).
-    """
-    sorted_scores = scores[scores.argsort()[::-1]]
-    difs = sorted_scores[:-1] - sorted_scores[1:]
-    t = difs.argmax()
-    thresh = (sorted_scores[t] + sorted_scores[t + 1]) / 2
-    return thresh
 
 def print_traceback():
     tb = traceback.extract_tb(sys.exc_info()[2])
@@ -104,26 +92,26 @@ class Predictor:
 
     def get_feature_vectors(
         self,
-        images,
+        images, # already prepared images
     ):
-        ret_vectors = []
-        ret_filepathes = []
-        prepared_images = []
-        for image in images:
-            prepared_image = self.prepare_image(image)
-            prepared_images.append(prepared_image)
+        cated_images = torch.cat(images, dim=0)
+        with torch.no_grad(), torch.cuda.amp.autocast():
+            return self.clip_model.get_image_features(cated_images)
 
-        input_name = self.tagger_model.get_inputs()[0].name
-        label_name = self.tagger_model.get_outputs()[0].name
-        preds = self.tagger_model.run([label_name], {input_name: image})[0]
-
-        return ret_vectors, ret_filepathes
-
-    # write a line to file
+    # write lines to file
     def write_to_file(self, lines):    
         for line in lines:
             self.f.write(line + '\n')
         self.f.flush()
+
+    def create_vector_index(self, feature_vectors):
+        # Create vector index with Faiss
+        quantizer = faiss.IndexFlatL2(EMBED_DIM)
+        index = faiss.IndexIVFFlat(quantizer, EMBED_DIM, 5)        
+        feature_vectors_for_faiss = torch.cat(feature_vectors).detach().numpy()
+        index.train(feature_vectors_for_faiss)
+        index.add(feature_vectors_for_faiss)
+        faiss.write_index(index, INDEX_FNAME)
 
     # root function
     def process_directory(self, directory):
@@ -134,42 +122,53 @@ class Predictor:
         self.f = open('clip-index-fpathes.txt', 'w', encoding='utf-8')
         self.load_model()
 
-        quantizer = faiss.IndexFlatL2(EMBED_DIM)
-        index = faiss.IndexIVFFlat(quantizer, EMBED_DIM, 5)
-
         feature_vectors_all = []
+        
+        idx = 0
         cnt = 0
-        # process each image file
-        for file_path in file_list:
-            try:
-                img = Image.open(file_path)
-            except Exception as e:
-                error_class = type(e)
-                error_description = str(e)
-                err_msg = '%s: %s' % (error_class, error_description)
-                print(err_msg)
-                print_traceback()
-                pass
+        last_cnt = 0
+        # process each image file in batch
+        while True:
+            path_batch = list(itertools.islice(file_list, idx, idx + BATCH_SIZE))
 
-            feature_vectors, filepathes = self.get_feature_vectors(images)
-            feature_vectors_all.extend(feature_vectors)
-            self.write_to_file(filepathes)
+            if len(path_batch) == 0:
+                break
+            idx += BATCH_SIZE
 
-            if cnt % 100 == 0:
+            images = []
+            indexed_file_pathes = []
+            for file_path in path_batch:
+                try:
+                    img = Image.open(file_path)
+                    img = self.prepare_image(img)
+                    img = self.preprocess(img).unsqueeze(0)
+                    images.append(img)
+                    indexed_file_pathes.append(file_path)
+                except Exception as e:
+                    error_class = type(e)
+                    error_description = str(e)
+                    err_msg = '%s: %s' % (error_class, error_description)
+                    print(err_msg)
+                    print_traceback()
+                    pass            
+
+            feature_vectors = self.get_feature_vectors(images)
+            feature_vectors_all.append(feature_vectors)
+            
+            # Write vectorized image filepathes to file each time
+            self.write_to_file(indexed_file_pathes)
+
+            if cnt - last_cnt >= 100:
                 print(f'{cnt} files processed')
+                last_cnt = cnt
 
             cnt += len(feature_vectors)
 
-        # Create index with Faiss
-        feature_vectors_fin = np.array(feature_vectors_all)
-        index.train(feature_vectors_fin)
-        index.add(feature_vectors_fin)
-        faiss.write_index(index, INDEX_FNAME)
-
+        self.create_vector_index(feature_vectors_all)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', nargs=1, required=True, help='tagging target directory path')
+    parser.add_argument('--dir', nargs=1, required=True, help='image files directory path')
     args = parser.parse_args()
 
     predictor = Predictor()
