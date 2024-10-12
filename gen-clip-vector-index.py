@@ -13,7 +13,7 @@ EMBED_DIM = 1024
 IMAGE_SIZE = 224
 INDEX_FNAME = 'clip-index'
 INDEX_FPATHES_FNAME = 'clip-index-fpathes.txt'
-BATCH_SIZE = 50
+BATCH_SIZE = 10
 
 # extensions of image files to be processed
 EXTENSIONS = ['.png', '.jpg', '.jpeg', ".PNG", ".JPG", ".JPEG"]
@@ -47,6 +47,7 @@ class Predictor:
         self.clip_model = None
         self.preprocess = None
         self.tokenizer = None
+        self.index = None
 
     """
     def prepare_image(self, image):
@@ -112,12 +113,14 @@ class Predictor:
             self.f.write(line + '\n')
         self.f.flush()
 
-    def create_vector_index(self, feature_vectors):
+    def create_vector_index(self):
         # Create vector index with Faiss
-        index = faiss.IndexFlatIP(EMBED_DIM)
+        self.index = faiss.IndexFlatIP(EMBED_DIM)
+
+    def add_vectors_to_index(self, feature_vectors):
         feature_vectors_for_faiss = torch.cat(feature_vectors).detach().numpy()
-        index.add(feature_vectors_for_faiss)
-        faiss.write_index(index, INDEX_FNAME)
+        self.index.add(feature_vectors_for_faiss)
+        faiss.write_index(self.index, INDEX_FNAME)
 
     # root function
     def process_directory(self, directory):
@@ -128,7 +131,7 @@ class Predictor:
         self.f = open('clip-index-fpathes.txt', 'w', encoding='utf-8')
         self.load_model()
 
-        feature_vectors_all = []
+        # feature_vectors_all = []
         
         idx = 0
         cnt = 0
@@ -160,7 +163,14 @@ class Predictor:
                     pass            
 
             feature_vectors = self.get_feature_vectors(images)
-            feature_vectors_all.extend(feature_vectors)
+            
+            if self.index is None:
+                self.create_vector_index()
+            
+            # Add vectors to index file
+            self.add_vectors_to_index(feature_vectors)
+
+            # feature_vectors_all.extend(feature_vectors)
 
             # Write vectorized image filepathes to file each time
             self.write_to_file(indexed_file_pathes)
@@ -175,9 +185,9 @@ class Predictor:
                 time_per_file = diff / cnt
                 print('{:.4f} seconds per file'.format(time_per_file))
                 last_cnt = cnt
-                os.stdout.flush()
+                print("", flush=True)
 
-        self.create_vector_index(feature_vectors_all)
+        # self.create_vector_index(feature_vectors_all)
 
 def main():
     parser = argparse.ArgumentParser()
