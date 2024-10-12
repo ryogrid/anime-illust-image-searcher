@@ -1,4 +1,4 @@
-# Local Illustlation Image Files Searcher
+# Local Illustlation Image Files Searcher with CLIP ViT
 ## What's This?
 - Local illustration image files search engine with ML technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
@@ -6,7 +6,7 @@
 - So, I wrote simple scripts
 
 ## Method
-- Search image files with matching latent representation of image file and query text. The representation is generated with CLIP ViT 
+- Search image files with matching latent representation of image file and query text. The representation is generated with CLIP ViT (Vision Transformer) 
 - [OpenClip](https://github.com/mlfoundations/open_clip) and [laion/CLIP-ViT-H-14-laion2B-s32B-b79K pretrained model](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K) is used for generating latent representation
   - Faiss is used for creating index of latent representation vector of image files
 - ( Web UI is implemented with StreamLit )
