@@ -41,7 +41,7 @@
 - I used about 1000 image files collected from [freepik](https://freepik.com) which offers free license image materials, as search target example
 - Searching and showing results were taken about 5 sec
   - Current all vector matching implementation may need to be faster...
-    - Faiss's nearest neighbor search feature is promising 
+    - Faiss's approximate nearest neighbor (ANN) search feature is promising 
 - Search results
   - ![image](https://github.com/user-attachments/assets/364cba3a-71f2-40da-93a6-f756f1d99531)
   - ![image](https://github.com/user-attachments/assets/b58e10ab-6a91-479e-b9b8-7092d3bfb67d)
