@@ -1,9 +1,8 @@
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 import argparse, itertools
-import traceback, sys, re, math, time
+import traceback, sys, re, time
 
-import numpy as np
 from PIL import Image
 import faiss
 import open_clip, torch
@@ -128,10 +127,10 @@ class Predictor:
         print(f'{len(file_list)} files found')
 
         # file for vectorized image filepathes
-        self.f = open('clip-index-fpathes.txt', 'w', encoding='utf-8')
+        self.f = open(INDEX_FPATHES_FNAME, 'w', encoding='utf-8')
         self.load_model()
-
-        # feature_vectors_all = []
+        
+        feature_vectors_all = []
         
         idx = 0
         cnt = 0
@@ -163,14 +162,7 @@ class Predictor:
                     pass            
 
             feature_vectors = self.get_feature_vectors(images)
-            
-            if self.index is None:
-                self.create_vector_index()
-            
-            # Add vectors to index file
-            self.add_vectors_to_index(feature_vectors)
-
-            # feature_vectors_all.extend(feature_vectors)
+            feature_vectors_all.extend(feature_vectors)
 
             # Write vectorized image filepathes to file each time
             self.write_to_file(indexed_file_pathes)
@@ -187,7 +179,10 @@ class Predictor:
                 last_cnt = cnt
                 print("", flush=True)
 
-        # self.create_vector_index(feature_vectors_all)
+        # Create vector index
+        self.create_vector_index()
+        # Add vectors to index and save to file
+        self.add_vectors_to_index(feature_vectors)        
 
 def main():
     parser = argparse.ArgumentParser()
