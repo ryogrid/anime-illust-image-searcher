@@ -6,7 +6,8 @@
 - So, I wrote simple scripts
 
 ## Method
-- CLIP ViT model is used for generating latent representation from image files and query text
+- Search image files with matching latent representation of image file and query text. The representation is generated with CLIP ViT 
+- [OpenClip](https://github.com/mlfoundations/open_clip) and [laion/CLIP-ViT-H-14-laion2B-s32B-b79K pretrained model](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K) is used for generating latent representation
   - Faiss is used for creating index of latent representation vector of image files
 - ( Web UI is implemented with StreamLit )
 
@@ -15,7 +16,7 @@
 - $ python gen-clip-vector-index.py --dir "IMAGE FILES CONTAINED DIR PATH"
   - The script searches directory structure recursively :)
   - This takes quite a while...
-    - About 1 file/s at middle spec desktop PC (GPU is not used)
+    - About 0.8 sec/file at middle spec desktop PC (GPU is not used)
       - AMD Ryzen 7 5700X 8-Core Processor 4.50 GHz
     - You may speed up with editing the script :)
       - For example, you can make it to use GPU for CLIP model inference 
@@ -35,3 +36,22 @@
 - [ ] Incremental index updating at image files increasing
 - [ ] Similar image search with specifying target image file 
 - [ ] Making binary package of this app which doesn't need python environment building
+
+## Screenshots of Demo
+- I used about 1000 image files collected from [freepik](https://freepik.com) which offers free license image materials, as search target example
+- Searching and showing results were taken about 5 sec
+  - Current all vector matching implementation may need to be faster...
+    - Faiss's nearest neighbor search feature is promising 
+- Search results
+  - ![image](https://github.com/user-attachments/assets/364cba3a-71f2-40da-93a6-f756f1d99531)
+  - ![image](https://github.com/user-attachments/assets/b58e10ab-6a91-479e-b9b8-7092d3bfb67d)
+  - ![image](https://github.com/user-attachments/assets/f2639f36-e639-45e6-b820-5ff1cbcd2fb3)
+  - ![image](https://github.com/user-attachments/assets/3b95b3b4-db6d-483f-8bd1-8d2203c16792)
+  - ![image](https://github.com/user-attachments/assets/548c1114-2330-4600-82ab-4e29acc39327)
+- Image info page
+  - ![image](https://github.com/user-attachments/assets/f3c49ed9-d868-4566-9b4f-832dc128ee14)
+- Slideshow feature
+  - Auto slide in 5 sec period (roop)
+  - ![slideshow](https://github.com/user-attachments/assets/0a485613-adb0-4ba0-ac7d-1e124a1a92a8)
+
+
