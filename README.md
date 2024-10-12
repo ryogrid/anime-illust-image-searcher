@@ -35,7 +35,7 @@
   - Not doing tagging
   - Reference: ["Image Search app with CLIP+Faiss+Streamlit - OPTiM Tech Blog"](https://tech--blog-optim-co-jp.translate.goog/entry/2022/07/04/100000?_x_tr_sl=ja&_x_tr_tl=en&_x_tr_hl=ja&_x_tr_pto=wapp)
 - [ ] Incremental index updating at image files increasing
-- [ ] Similar image search with specifying target image file 
+- [ ] Similar image search with specifying image file 
 - [ ] Making binary package of this app which doesn't need python environment building
 
 ## Screenshots of Demo
