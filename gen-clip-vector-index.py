@@ -91,7 +91,7 @@ class Predictor:
         
         self.model_target_size = IMAGE_SIZE
 
-        self.clip_model, self.preprocess = open_clip.create_model_from_pretrained('hf-hub:' + CLIP_MODEL_REPO)
+        self.clip_model, self.preprocess = open_clip.create_model_from_pretrained('hf-hub:' + CLIP_MODEL_REPO, devide = 'cpu')
         self.tokenizer = open_clip.get_tokenizer('hf-hub:' + CLIP_MODEL_REPO)
 
     def get_feature_vectors(
