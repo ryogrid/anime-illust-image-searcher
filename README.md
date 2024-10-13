@@ -1,8 +1,8 @@
 # Anime Style Illustlation Image Search Engine with CLIP ViT
 ## What's This?
-- Anime Style illustration image search engine with CLIP ViT and simple viewer
+- **Anime Style illustration** image search engine with CLIP ViT and simple viewer
   - **can be used for photos. But flexible photo search is offered by Google Photos or etc :)**
-- Search capabilities of cloud photo album services towards anime styole illustration image files are poor for some reason
+- **Search capabilities of cloud photo album services towards anime styole illustration image files are poor for some reason**
 - So, I wrote simple scripts
 
 ## Method
