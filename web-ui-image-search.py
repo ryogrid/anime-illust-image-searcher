@@ -26,8 +26,8 @@ index: Optional[faiss.Index] = None
 
 CLIP_MODEL_REPO: str = 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K'
 
-INDEX_FNAME: str = 'clip-index-demo'
-INDEX_FPATHES_FNAME: str = 'clip-index-demo-fpathes.txt'
+INDEX_FNAME: str = 'clip-index'
+INDEX_FPATHES_FNAME: str = 'clip-index-fpathes.txt'
 
 class Arguments(Protocol):
     rep: List[str]
