@@ -46,6 +46,7 @@ def mcut_threshold(scores: Any) -> float:
 
 def find_similar_documents(query: str, topn: int = 50) -> List[Tuple[int, float]]:
     if tokenizer is None or clip_model is None or index is None:
+        print('Model is not loaded.')
         exit(1)
     query_tok: Any = tokenizer(query)
     query_vec: Any = clip_model.encode_text(query_tok)
