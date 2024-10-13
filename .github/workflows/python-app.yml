@@ -31,4 +31,4 @@ jobs:
     - name: Mypy Check
       uses: jpetrucciani/mypy-check@master
       with:
-        path: /home/runner/work/anime-illust-image-searcher/anime-illust-image-searcher
+        path: /home/runner/work/anime-illust-image-searcher/anime-illust-image-searcher/*.py
