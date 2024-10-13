@@ -1,4 +1,5 @@
 import os
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import argparse, itertools
 import traceback, sys, re, time
@@ -41,7 +42,7 @@ def list_files_recursive(directory: str) -> List[str]:
     return file_list
 
 class ImageEncodable(Protocol):
-    encode_image: Callable[[Image.Image], torch.Tensor]
+    encode_image: Callable[[torch.Tensor], torch.Tensor]
 
 
 class Predictor:
@@ -62,7 +63,7 @@ class Predictor:
         self.clip_model, self.preprocess = open_clip.create_model_from_pretrained('hf-hub:' + CLIP_MODEL_REPO, device='cpu')
         self.tokenizer = open_clip.get_tokenizer('hf-hub:' + CLIP_MODEL_REPO)
 
-    def get_feature_vectors(self, images: List[Any]) -> List[torch.Tensor]:
+    def get_feature_vectors(self, images: List[torch.Tensor]) -> List[torch.Tensor]:
         if self.clip_model is None:
             print("self.clip_model is None")
             exit(1)
@@ -117,7 +118,7 @@ class Predictor:
                 break
             idx += BATCH_SIZE
 
-            images: List[Any] = []
+            images: List[torch.Tensor] = []
             indexed_file_pathes: List[str] = []
             for file_path in path_batch:
                 try:
@@ -126,8 +127,8 @@ class Predictor:
                         print("preprocess is None")
                         exit(1)
 
-                    img = self.preprocess(img).unsqueeze(0)
-                    images.append(img)
+                    img_tensor : torch.Tensor = self.preprocess(img).unsqueeze(0)
+                    images.append(img_tensor)
                     indexed_file_pathes.append(file_path)
                 except Exception as e:
                     error_class: type = type(e)

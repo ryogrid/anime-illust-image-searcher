@@ -1,6 +1,8 @@
 import os
 
+from numpy import ndarray
 from streamlit.runtime.state import SessionStateProxy
+from torch import Tensor
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import open_clip
@@ -48,22 +50,22 @@ def find_similar_documents(query: str, topn: int = 50) -> List[Tuple[int, float]
     if tokenizer is None or clip_model is None or index is None:
         print('Model is not loaded.')
         exit(1)
-    query_tok: Any = tokenizer(query)
-    query_vec: Any = clip_model.encode_text(query_tok)
+    query_tok: Tensor = tokenizer(query)
+    query_vec: Tensor = clip_model.encode_text(query_tok)
     query_vec /= query_vec.norm(dim=-1, keepdim=True)
-    query_vec = query_vec.detach().numpy()
+    query_vec_np : ndarray[Any, Any] = query_vec.detach().numpy()
     topn = len(indexed_file_pathes) if topn > len(indexed_file_pathes) else topn
-    result_sims: Any
-    result_idxes: Any
-    result_sims, result_idxes = index.search(query_vec, topn)
+    result_sims: ndarray
+    result_idxes: ndarray
+    result_sims, result_idxes = index.search(query_vec_np, topn)
 
     thresh: float = mcut_threshold(result_sims[0])
     print(f'Threshold: {thresh}')
 
-    result_sims = result_sims[0].tolist()
-    result_idxes = result_idxes[0].tolist()
+    result_sims_list: List[float] = result_sims[0].tolist()
+    result_idxes_list: List[int] = result_idxes[0].tolist()
 
-    pairs: List[Tuple[int, float]] = [(idx - 1, sim) for idx, sim in zip(result_idxes, result_sims) if idx > 0 and sim > thresh]
+    pairs: List[Tuple[int, float]] = [(idx - 1, sim) for idx, sim in zip(result_idxes_list, result_sims_list) if idx > 0 and sim > thresh]
     pairs = sorted(pairs, key=lambda x: -1 * x[1])
 
     ret_len: int = topn
