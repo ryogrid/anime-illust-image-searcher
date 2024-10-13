@@ -1,6 +1,7 @@
 import os
 
-from numpy import ndarray
+import numpy as np
+from numpy import ndarray, signedinteger
 from streamlit.runtime.state import SessionStateProxy
 from torch import Tensor
 
@@ -33,7 +34,7 @@ class Arguments(Protocol):
 
 args: Optional[Arguments] = None
 
-def mcut_threshold(scores: Any) -> float:
+def mcut_threshold(scores: ndarray) -> float:
     """
     Maximum Cut Thresholding (MCut)
     Largeron, C., Moulin, C., & Gery, M. (2012). MCut: A Thresholding Strategy
@@ -41,8 +42,17 @@ def mcut_threshold(scores: Any) -> float:
     (pp. 172-183).
     """
     sorted_scores: Any = scores[scores.argsort()[:-1]]
-    difs: Any = sorted_scores[:-1] - sorted_scores[1:]
-    t: int = difs.argmax()
+    difs: ndarray = sorted_scores[:-1] - sorted_scores[1:]
+    tmp_list : List[float] = []
+    # Replace 0 with -inf (same image files exist case)
+    for idx, val in enumerate(difs):
+        if val == 0:
+            tmp_list.append(-np.inf)
+        else:
+            tmp_list.append(val)
+    difs = np.array(tmp_list)
+
+    t: signedinteger = difs.argmax()
     thresh: float = (sorted_scores[t] + sorted_scores[t + 1]) / 2
     return thresh
 
@@ -59,11 +69,14 @@ def find_similar_documents(query: str, topn: int = 50) -> List[Tuple[int, float]
     result_idxes: ndarray
     result_sims, result_idxes = index.search(query_vec_np, topn)
 
-    thresh: float = mcut_threshold(result_sims[0])
-    print(f'Threshold: {thresh}')
-
     result_sims_list: List[float] = result_sims[0].tolist()
     result_idxes_list: List[int] = result_idxes[0].tolist()
+
+    # Filter vector index == 0 elements
+    result_sims_filtered: ndarray = result_sims[0][result_idxes[0] > 0]
+    # thresh: float = mcut_threshold(result_sims[0])
+    thresh: float = mcut_threshold(result_sims_filtered)
+    print(f'Threshold: {thresh}')
 
     pairs: List[Tuple[int, float]] = [(idx - 1, sim) for idx, sim in zip(result_idxes_list, result_sims_list) if idx > 0 and sim > thresh]
     pairs = sorted(pairs, key=lambda x: -1 * x[1])
@@ -232,7 +245,7 @@ def show_search_result() -> None:
     for image_id, score in find_result:
         try:
             found_fpath: str = indexed_file_pathes[image_id]
-            print(f'Image ID: {image_id}, Score: {score}, Filepath: {found_fpath}')
+            # print(f'Image ID: {image_id}, Score: {score}, Filepath: {found_fpath}')
             if args is not None and args.rep:
                 found_fpath = found_fpath.replace(args.rep[0], args.rep[1])
             # Collect image info
