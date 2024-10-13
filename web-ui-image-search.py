@@ -1,65 +1,76 @@
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+from streamlit.runtime.state import SessionStateProxy
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import open_clip
 import faiss
 
 import argparse
 import streamlit as st
 import time
+from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol
 
 # $ streamlit run web-ui-image-search.py
 
-ss = st.session_state
-search_tags = ''
-indexed_file_pathes = []
+ss: SessionStateProxy = st.session_state
+search_tags: str = ''
+indexed_file_pathes: List[str] = []
 
-args = None
+clip_model: Optional[Any] = None
+tokenizer: Optional[Callable] = None
+index: Optional[faiss.Index] = None
 
-clip_model = None
-tokenizer = None
-index = None
+CLIP_MODEL_REPO: str = 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K'
 
-CLIP_MODEL_REPO = 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K'
+INDEX_FNAME: str = 'clip-index-demo'
+INDEX_FPATHES_FNAME: str = 'clip-index-demo-fpathes.txt'
 
-INDEX_FNAME = 'clip-index'
-INDEX_FPATHES_FNAME = 'clip-index-fpathes.txt'
+class Arguments(Protocol):
+    rep: List[str]
 
-def mcut_threshold(scores):
+args: Optional[Arguments] = None
+
+def mcut_threshold(scores: Any) -> float:
     """
     Maximum Cut Thresholding (MCut)
     Largeron, C., Moulin, C., & Gery, M. (2012). MCut: A Thresholding Strategy
     for Multi-label Classification. In 11th International Symposium, IDA 2012
     (pp. 172-183).
     """
-    sorted_scores = scores[scores.argsort()[:-1]]
-    difs = sorted_scores[:-1] - sorted_scores[1:]
-    t = difs.argmax()
-    thresh = (sorted_scores[t] + sorted_scores[t + 1]) / 2
+    sorted_scores: Any = scores[scores.argsort()[:-1]]
+    difs: Any = sorted_scores[:-1] - sorted_scores[1:]
+    t: int = difs.argmax()
+    thresh: float = (sorted_scores[t] + sorted_scores[t + 1]) / 2
     return thresh
 
-def find_similar_documents(query, topn=50):
-    query_tok = tokenizer(query)
-    query_vec = clip_model.encode_text(query_tok)
+def find_similar_documents(query: str, topn: int = 50) -> List[Tuple[int, float]]:
+    if tokenizer is None or clip_model is None or index is None:
+        exit(1)
+    query_tok: Any = tokenizer(query)
+    query_vec: Any = clip_model.encode_text(query_tok)
     query_vec /= query_vec.norm(dim=-1, keepdim=True)
     query_vec = query_vec.detach().numpy()
     topn = len(indexed_file_pathes) if topn > len(indexed_file_pathes) else topn
+    result_sims: Any
+    result_idxes: Any
     result_sims, result_idxes = index.search(query_vec, topn)
 
-    thresh = mcut_threshold(result_sims[0])
+    thresh: float = mcut_threshold(result_sims[0])
     print(f'Threshold: {thresh}')
 
     result_sims = result_sims[0].tolist()
     result_idxes = result_idxes[0].tolist()
 
-    pairs = [(idx - 1, sim) for idx, sim in zip(result_idxes, result_sims) if idx > 0 and sim > thresh]
+    pairs: List[Tuple[int, float]] = [(idx - 1, sim) for idx, sim in zip(result_idxes, result_sims) if idx > 0 and sim > thresh]
     pairs = sorted(pairs, key=lambda x: -1 * x[1])
 
-    ret_len = topn
+    ret_len: int = topn
     if ret_len > len(pairs):
         ret_len = len(pairs)
     return pairs[:ret_len]
 
-def init_session_state(data=[]):
+def init_session_state(data: List[Any] = []) -> None:
     global ss
     if 'data' not in ss:
         ss['data'] = []
@@ -72,9 +83,9 @@ def init_session_state(data=[]):
         return
 
     if 'page_index' not in ss:
-        ss['page_index'] = 0    
+        ss['page_index'] = 0
 
-def update_index(session_key, num, max_val=None):
+def update_index(session_key: str, num: int, max_val: Optional[int] = None) -> None:
     global ss
 
     if max_val:
@@ -86,10 +97,10 @@ def update_index(session_key, num, max_val=None):
             ss[session_key] += num
             st.rerun()
 
-def convert_data_structure(image_info_list):
-    pages = []
-    rows = []
-    cols = []
+def convert_data_structure(image_info_list: List[Dict[str, Any]]) -> List[List[List[Dict[str, Any]]]]:
+    pages: List[List[List[Dict[str, Any]]]] = []
+    rows: List[List[Dict[str, Any]]] = []
+    cols: List[Dict[str, Any]] = []
 
     for ii in range(len(image_info_list)):
         cols.append(image_info_list[ii])
@@ -107,23 +118,23 @@ def convert_data_structure(image_info_list):
 
     return pages
 
-def get_all_images():
-    images = []
+def get_all_images() -> List[str]:
+    images: List[str] = []
     for page in ss['data']:
         for row in page:
             for image_info in row:
                 images.append(image_info['file_path'])
     return images
 
-def slideshow():
-    images = get_all_images()
+def slideshow() -> None:
+    images: List[str] = get_all_images()
     if len(images) == 0:
         st.write("No images to display in slideshow.")
         ss['slideshow_active'] = False
         st.rerun()
     if 'slideshow_index' not in ss:
         ss['slideshow_index'] = 0
-    cols = st.columns([1])
+    cols: Any = st.columns([1])
 
     try:
         cols[0].image(images[ss['slideshow_index']], use_column_width=True)
@@ -141,18 +152,18 @@ def slideshow():
         # Wait for 5 seconds
         time.sleep(5)
         # Update the index
-        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)    
+        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
     st.rerun()
 
-def is_now_slideshow():
+def is_now_slideshow() -> bool:
     return 'slideshow_active' in ss and ss['slideshow_active']
 
-def display_images():
+def display_images() -> None:
     global ss
 
     if 'data' in ss and len(ss['data']) > 0:
         # Add the 'Slideshow' button in the upper-left corner
-        cols = st.columns([10])
+        cols: Any = st.columns([10])
         with cols[0]:
             if st.button('Slideshow'):
                 ss['slideshow_active'] = True
@@ -160,12 +171,12 @@ def display_images():
                 st.rerun()
                 return
 
-            for data_per_page in ss['data'][ss['page_index']]:                
+            for data_per_page in ss['data'][ss['page_index']]:
                 cols = st.columns(5)
                 for col_index, col_ph in enumerate(cols):
                     try:
-                        image_info = data_per_page[col_index]
-                        key = f"img_{ss['page_index']}_{image_info['image_id']}_{col_index}"
+                        image_info: Dict[str, Any] = data_per_page[col_index]
+                        key: str = f"img_{ss['page_index']}_{image_info['image_id']}_{col_index}"
                         # Make the image clickable
                         if col_ph.button('info', key=key):
                             ss['selected_image_info'] = image_info
@@ -176,8 +187,7 @@ def display_images():
                         continue
             pagination()
 
-
-def pagination():
+def pagination() -> None:
     col1, col2, col3 = st.columns([2, 8, 2])
     if col1.button('Prev'):
         update_index('page_index', -1)
@@ -192,9 +202,9 @@ def pagination():
         unsafe_allow_html=True,
     )
 
-def display_selected_image():
+def display_selected_image() -> None:
     global ss
-    image_info = ss['selected_image_info']
+    image_info: Dict[str, Any] = ss['selected_image_info']
     col1, col2 = st.columns([3, 1])
     with col1:
         st.image(image_info['file_path'], use_column_width=True)
@@ -208,19 +218,19 @@ def display_selected_image():
         ss['text_input'] = ss['last_search_tags']
         st.rerun()
 
-def show_search_result():
+def show_search_result() -> None:
     global image_files_name_tags_arr
     global args
 
     load_model()
-    find_result = find_similar_documents(search_tags, topn=2000) 
+    find_result: List[Tuple[int, float]] = find_similar_documents(search_tags, topn=2000)
 
-    found_docs_info = []
+    found_docs_info: List[Dict[str, Any]] = []
     for image_id, score in find_result:
         try:
-            found_fpath = indexed_file_pathes[image_id]
+            found_fpath: str = indexed_file_pathes[image_id]
             print(f'Image ID: {image_id}, Score: {score}, Filepath: {found_fpath}')
-            if args.rep:
+            if args is not None and args.rep:
                 found_fpath = found_fpath.replace(args.rep[0], args.rep[1])
             # Collect image info
             found_docs_info.append({
@@ -230,12 +240,12 @@ def show_search_result():
             })
         except Exception as e:
             print(f'Error: {e}')
-            continue    
+            continue
 
-    pages = convert_data_structure(found_docs_info)
+    pages: List[List[List[Dict[str, Any]]]] = convert_data_structure(found_docs_info)
     init_session_state(pages)
 
-def load_model():
+def load_model() -> None:
     global clip_model, tokenizer
     global indexed_file_pathes
     global index
@@ -248,16 +258,15 @@ def load_model():
 
     # Load model and others
     clip_model, _ = open_clip.create_model_from_pretrained('hf-hub:' + CLIP_MODEL_REPO)
-    tokenizer = open_clip.get_tokenizer('hf-hub:' + CLIP_MODEL_REPO)    
+    tokenizer = open_clip.get_tokenizer('hf-hub:' + CLIP_MODEL_REPO)
     index = faiss.read_index(INDEX_FNAME)
 
-
-def main():
+def main() -> None:
     global search_tags
     global args
     global ss
 
-    parser = argparse.ArgumentParser()
+    parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('--rep', nargs=2, required=False, help='replace the string in file path to one you want')
     args = parser.parse_args()
 
@@ -265,16 +274,17 @@ def main():
 
     if is_now_slideshow():
         slideshow()
-    else:        
+    else:
         if 'selected_image_info' in ss and ss['selected_image_info']:
             display_selected_image()
         else:
             # Input form
-            search_tags = st.text_input('Enter search tags', value='', key='text_input')            
+            search_tags = st.text_input('Enter search tags', value='', key='text_input')
             if search_tags and ss['last_search_tags'] != search_tags:
                 ss['last_search_tags'] = search_tags
                 show_search_result()
-                st.rerun()            
-            display_images()            
+                st.rerun()
+            display_images()
 
 main()
+
