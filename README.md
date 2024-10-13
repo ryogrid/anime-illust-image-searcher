@@ -1,14 +1,14 @@
-# Local Illustlation Image Files Searcher with CLIP ViT
+# Anime Illustlation Image Files Searcher with CLIP ViT
 ## What's This?
-- Local illustration image files search engine with CLIP ViT and simple viewer
+- Anime illustration image files search engine with CLIP ViT and simple viewer
   - can be used for photos. But flexible photo search is offered by Google Photos or etc :)
-- Search capabilities of cloud photo album services towards illustration image files are poor for some reason
+- Search capabilities of cloud photo album services towards anime styole illustration image files are poor for some reason
 - So, I wrote simple scripts
 
 ## Method
 - Search image files with matching latent representations of image files and query texts. The representations are generated with CLIP ViT (Vision Transformer) 
 - [OpenClip](https://github.com/mlfoundations/open_clip) and [laion/CLIP-ViT-H-14-laion2B-s32B-b79K pretrained model](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K) is used for generating the representations
-  - laion2B dataset includes illust images. So it is better than other CLIP models for illust image file search :)
+  - laion2B dataset includes snime illust images. So it is better than other CLIP models for anime illust image file search :)
   - Faiss is used for creating index of latent representation vectors of image files
 - ( Web UI is implemented with StreamLit )
 
