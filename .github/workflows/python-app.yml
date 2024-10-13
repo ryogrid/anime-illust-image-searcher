@@ -26,6 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd /home/runner/work/anime-illust-image-searcher/anime-illust-image-searcher
+        ls -l
         pip install -r requiements.txt
     - name: Mypy Check
       uses: jpetrucciani/mypy-check@master
