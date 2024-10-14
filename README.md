@@ -1,4 +1,4 @@
-# Anime Style Illustration Specific Image Search App with Vit Tagger x LSI
+# Anime Style Illustration Specific Image Search App with ViT Tagger x LSI
 ## What's This?
 - Anime Style Illustration Specific Image Search App with ML Technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
