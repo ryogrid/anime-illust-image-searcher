@@ -6,7 +6,7 @@
 - So, I wrote simple scripts
 
 ## Method
-- Search Images matching with Query Texts on Latent Semantic Representation Vector Space
+- Search Images Matching with Query Texts on Latent Semantic Representation Vector Space
   - Vectors are generated with embedding model: Visual Transformar (ViT) Tagger x Latent Semantic Indexing (LSI) 
 - LSI is used for Covering Tagging Presision
   - You can use tags to search which are difficult for tagging because the index data which is composed of vectors is applyed LSI
