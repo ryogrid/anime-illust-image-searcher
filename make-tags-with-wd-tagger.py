@@ -7,6 +7,7 @@ import pandas as pd
 import argparse
 import traceback, sys
 import re
+from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol
 
 # https://github.com/toriato/stable-diffusion-webui-wd14-tagger/blob/a9eacb1eff904552d3012babfa28b57e1d3e295c/tagger/ui.py#L368
 kaomojis = [
@@ -51,16 +52,16 @@ def mcut_threshold(probs):
     thresh = (sorted_probs[t] + sorted_probs[t + 1]) / 2
     return thresh
 
-def load_labels(dataframe) -> list[str]:
+def load_labels(dataframe) -> Tuple[List[str], List[str], List[str], List[str]]:
     name_series = dataframe["name"]
     name_series = name_series.map(
         lambda x: x.replace("_", " ") if x not in kaomojis else x
     )
-    tag_names = name_series.tolist()
+    tag_names: List[str] = name_series.tolist()
 
-    rating_indexes = list(np.where(dataframe["category"] == 9)[0])
-    general_indexes = list(np.where(dataframe["category"] == 0)[0])
-    character_indexes = list(np.where(dataframe["category"] == 4)[0])
+    rating_indexes: List[str] = list(np.where(dataframe["category"] == 9)[0])
+    general_indexes: List[str] = list(np.where(dataframe["category"] == 0)[0])
+    character_indexes: List[str] = list(np.where(dataframe["category"] == 4)[0])
     return tag_names, rating_indexes, general_indexes, character_indexes
 
 def print_traceback():
