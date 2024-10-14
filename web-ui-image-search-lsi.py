@@ -13,40 +13,37 @@ from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol
 
 ss: SessionStateProxy = st.session_state
 search_tags: str = ''
-image_files_name_tags_arr = []
-model = None
-index = None
-dictionary = None
+image_files_name_tags_arr: List[str] = []
+model: Optional[LsiModel] = None
+index: Optional[MatrixSimilarity] = None
+dictionary: Optional[Any] = None
 
-NG_WORDS = ['language', 'english_text', 'pixcel_art']
+NG_WORDS: List[str] = ['language', 'english_text', 'pixcel_art']
 
 class Arguments(Protocol):
     rep: List[str]
 
 args: Optional[Arguments] = None
 
-def find_similar_documents(model, new_doc, topn=50):
-    # Vectorize the query
-    query_bow = dictionary.doc2bow(simple_preprocess(new_doc))
-    query_lsi = model[query_bow]
+def find_similar_documents(model: LsiModel, new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
+    query_bow: List[Tuple[int, int]] = dictionary.doc2bow(simple_preprocess(new_doc))
+    query_lsi: List[Tuple[int, float]] = model[query_bow]
 
-    # Calculate similarities
-    sims = index[query_lsi]
+    sims: List[Tuple[int, float]] = index[query_lsi]
 
-    # Sort results
-    sims = sorted(enumerate(sims), key=lambda item: -item[1])    
-    sims_filtered = [x for x in sims if x[1] > 0.1]
+    sims = sorted(enumerate(sims), key=lambda item: -item[1])
+    sims_filtered: List[Tuple[int, float]] = [x for x in sims if x[1] > 0.1]
     if len(sims_filtered) > 30:
         sims = sims_filtered
     else:
         sims = sims[:30]
 
-    ret_len = topn
+    ret_len: int = topn
     if ret_len > len(sims):
-        ret_len = len(sims)    
+        ret_len = len(sims)
     return sims[:ret_len]
 
-def is_include_ng_word(tags):
+def is_include_ng_word(tags: List[str]) -> bool:
     for ng_word in NG_WORDS:
         if ng_word in tags:
             return True
@@ -65,7 +62,7 @@ def init_session_state(data: List[Any] = []) -> None:
         return
 
     if 'page_index' not in ss:
-        ss['page_index'] = 0    
+        ss['page_index'] = 0
 
 def update_index(session_key: str, num: int, max_val: Optional[int] = None) -> None:
     global ss
@@ -125,16 +122,13 @@ def slideshow() -> None:
         ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
         st.rerun()
         return
-    # Provide a 'Stop Slideshow' button
     if st.button('Stop'):
         ss['slideshow_active'] = False
         ss['slideshow_index'] = 0
         ss['text_input'] = ss['last_search_tags']
     else:
-        # Wait for 5 seconds
         time.sleep(5)
-        # Update the index
-        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)    
+        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
     st.rerun()
 
 def is_now_slideshow() -> bool:
@@ -144,7 +138,6 @@ def display_images() -> None:
     global ss
 
     if 'data' in ss and len(ss['data']) > 0:
-        # Add the 'Slideshow' button in the upper-left corner
         cols: Any = st.columns([10])
         with cols[0]:
             if st.button('Slideshow'):
@@ -153,13 +146,12 @@ def display_images() -> None:
                 st.rerun()
                 return
 
-            for data_per_page in ss['data'][ss['page_index']]:                
+            for data_per_page in ss['data'][ss['page_index']]:
                 cols = st.columns(5)
                 for col_index, col_ph in enumerate(cols):
                     try:
                         image_info: Dict[str, Any] = data_per_page[col_index]
                         key: str = f"img_{ss['page_index']}_{image_info['doc_id']}_{col_index}"
-                        # Make the image clickable
                         if col_ph.button('info', key=key):
                             ss['selected_image_info'] = image_info
                             st.rerun()
@@ -207,47 +199,42 @@ def show_search_result() -> None:
     global args
 
     load_model()
-    similar_docs = find_similar_documents(model, search_tags, topn=2000) 
+    similar_docs: List[Tuple[int, float]] = find_similar_documents(model, search_tags, topn=2000)
 
     found_docs_info: List[Dict[str, Any]] = []
     for doc_id, similarity in similar_docs:
         try:
-            found_img_info_splited = image_files_name_tags_arr[doc_id].split(',')
+            found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')
             if is_include_ng_word(found_img_info_splited):
                 continue
-            # print(f'Image ID: {doc_id}, Similarity: {similarity}, Tags: {image_files_name_tags_arr[doc_id]}')
             found_fpath: str = found_img_info_splited[0]
             if args is not None and args.rep:
                 found_fpath = found_fpath.replace(args.rep[0], args.rep[1])
-            # Collect image info
             found_docs_info.append({
                 'file_path': found_fpath,
                 'doc_id': doc_id,
                 'similarity': similarity,
-                # Assuming tags start from index 1
                 'tags': found_img_info_splited[1:]
             })
         except Exception as e:
             print(f'Error: {e}')
-            continue    
+            continue
 
     pages: List[List[List[Dict[str, Any]]]] = convert_data_structure(found_docs_info)
     init_session_state(pages)
 
-def load_model():
+def load_model() -> None:
     global model
     global image_files_name_tags_arr
     global index
     global dictionary
 
-    # Load index text file to show images
-    tag_file_path = 'tags-wd-tagger_lsi_idx.csv'
+    tag_file_path: str = 'tags-wd-tagger_lsi_idx.csv'
     image_files_name_tags_arr = []
     with open(tag_file_path, 'r', encoding='utf-8') as f:
         for line in f:
             image_files_name_tags_arr.append(line.strip())
 
-    # Load model and others
     model = LsiModel.load("lsi_model")
     index = MatrixSimilarity.load("lsi_index")
     dictionary = pickle.load(open("lsi_dictionary", "rb"))
@@ -265,16 +252,15 @@ def main() -> None:
 
     if is_now_slideshow():
         slideshow()
-    else:        
+    else:
         if 'selected_image_info' in ss and ss['selected_image_info']:
             display_selected_image()
         else:
-            # Input form
-            search_tags = st.text_input('Enter search tags', value='', key='text_input')            
+            search_tags = st.text_input('Enter search tags', value='', key='text_input')
             if search_tags and ss['last_search_tags'] != search_tags:
                 ss['last_search_tags'] = search_tags
                 show_search_result()
-                st.rerun()            
-            display_images()            
+                st.rerun()
+            display_images()
 
 main()
