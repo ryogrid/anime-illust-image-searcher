@@ -43,7 +43,7 @@
   - Solution
     - Search words you want to use from taggs-wd-tagger.txt with grep, editor or something for existance checking
     - If exist, there is no problem. If not, you should think similar words and search it in same manner :) 
-- Charcter code of file pathes 
+- Character code of file pathes 
   - If file path contains charactors which can't be contered to Unicode or utf-8, scripts may ouput error message at processing the file
   - But, it doesn't mean that your script usage is wrong. Though these files is ignored or not displayed at Web UI :|
     - This is problem of current implentation. When you use scripts on Windows and charactor code of directory/file names isn't utf-8, the problem may occur
