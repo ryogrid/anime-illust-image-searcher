@@ -48,7 +48,7 @@ def main():
 
     # gen LSI model with specified number of topics (dimensions)
     # ATTENTION: num_topics should be set to appropriate value!!!
-    lsi_model = LsiModel(corpus, id2word=dictionary, num_topics=700)
+    lsi_model = LsiModel(corpus, id2word=dictionary, num_topics=800)
 
     lsi_model.save("lsi_model")
 

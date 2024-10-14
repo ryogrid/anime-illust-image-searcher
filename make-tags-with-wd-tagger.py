@@ -237,6 +237,7 @@ class Predictor:
 
         self.load_model()
 
+        start = time.perf_counter()
         cnt = 0
         # process each image file
         for file_path in file_list:
@@ -248,7 +249,13 @@ class Predictor:
                 self.write_to_file(file_path + ',' + results_in_csv_format)
 
                 if cnt % 100 == 0:
+                    now = time.perf_counter()
                     print(f'{cnt} files processed')
+                    diff = now - start
+                    print('{:.2f} seconds elapsed'.format(diff))
+                    time_per_file = diff / cnt
+                    print('{:.4f} seconds per file'.format(time_per_file))
+                    print("", flush=True)
 
                 cnt += 1
             except Exception as e:

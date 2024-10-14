@@ -1,23 +1,29 @@
 from gensim.models.lsimodel import LsiModel
 from gensim.utils import simple_preprocess
 from gensim.similarities import MatrixSimilarity
+from streamlit.runtime.state import SessionStateProxy
 import pickle
 
 import argparse
 import streamlit as st
 import time
+from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol
 
 # $ streamlit run web-ui-image-search-lsi.py
 
-ss = st.session_state
-search_tags = ''
+ss: SessionStateProxy = st.session_state
+search_tags: str = ''
 image_files_name_tags_arr = []
-args = None
 model = None
 index = None
 dictionary = None
 
 NG_WORDS = ['language', 'english_text', 'pixcel_art']
+
+class Arguments(Protocol):
+    rep: List[str]
+
+args: Optional[Arguments] = None
 
 def find_similar_documents(model, new_doc, topn=50):
     # Vectorize the query
@@ -46,7 +52,7 @@ def is_include_ng_word(tags):
             return True
     return False
 
-def init_session_state(data=[]):
+def init_session_state(data: List[Any] = []) -> None:
     global ss
     if 'data' not in ss:
         ss['data'] = []
@@ -61,7 +67,7 @@ def init_session_state(data=[]):
     if 'page_index' not in ss:
         ss['page_index'] = 0    
 
-def update_index(session_key, num, max_val=None):
+def update_index(session_key: str, num: int, max_val: Optional[int] = None) -> None:
     global ss
 
     if max_val:
@@ -73,10 +79,10 @@ def update_index(session_key, num, max_val=None):
             ss[session_key] += num
             st.rerun()
 
-def convert_data_structure(image_info_list):
-    pages = []
-    rows = []
-    cols = []
+def convert_data_structure(image_info_list: List[Dict[str, Any]]) -> List[List[List[Dict[str, Any]]]]:
+    pages: List[List[List[Dict[str, Any]]]] = []
+    rows: List[List[Dict[str, Any]]] = []
+    cols: List[Dict[str, Any]] = []
 
     for ii in range(len(image_info_list)):
         cols.append(image_info_list[ii])
@@ -94,23 +100,23 @@ def convert_data_structure(image_info_list):
 
     return pages
 
-def get_all_images():
-    images = []
+def get_all_images() -> List[str]:
+    images: List[str] = []
     for page in ss['data']:
         for row in page:
             for image_info in row:
                 images.append(image_info['file_path'])
     return images
 
-def slideshow():
-    images = get_all_images()
+def slideshow() -> None:
+    images: List[str] = get_all_images()
     if len(images) == 0:
         st.write("No images to display in slideshow.")
         ss['slideshow_active'] = False
         st.rerun()
     if 'slideshow_index' not in ss:
         ss['slideshow_index'] = 0
-    cols = st.columns([1])
+    cols: Any = st.columns([1])
 
     try:
         cols[0].image(images[ss['slideshow_index']], use_column_width=True)
@@ -131,15 +137,15 @@ def slideshow():
         ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)    
     st.rerun()
 
-def is_now_slideshow():
+def is_now_slideshow() -> bool:
     return 'slideshow_active' in ss and ss['slideshow_active']
 
-def display_images():
+def display_images() -> None:
     global ss
 
     if 'data' in ss and len(ss['data']) > 0:
         # Add the 'Slideshow' button in the upper-left corner
-        cols = st.columns([10])
+        cols: Any = st.columns([10])
         with cols[0]:
             if st.button('Slideshow'):
                 ss['slideshow_active'] = True
@@ -151,8 +157,8 @@ def display_images():
                 cols = st.columns(5)
                 for col_index, col_ph in enumerate(cols):
                     try:
-                        image_info = data_per_page[col_index]
-                        key = f"img_{ss['page_index']}_{image_info['doc_id']}_{col_index}"
+                        image_info: Dict[str, Any] = data_per_page[col_index]
+                        key: str = f"img_{ss['page_index']}_{image_info['doc_id']}_{col_index}"
                         # Make the image clickable
                         if col_ph.button('info', key=key):
                             ss['selected_image_info'] = image_info
@@ -163,8 +169,7 @@ def display_images():
                         continue
             pagination()
 
-
-def pagination():
+def pagination() -> None:
     col1, col2, col3 = st.columns([2, 8, 2])
     if col1.button('Prev'):
         update_index('page_index', -1)
@@ -179,9 +184,9 @@ def pagination():
         unsafe_allow_html=True,
     )
 
-def display_selected_image():
+def display_selected_image() -> None:
     global ss
-    image_info = ss['selected_image_info']
+    image_info: Dict[str, Any] = ss['selected_image_info']
     col1, col2 = st.columns([3, 1])
     with col1:
         st.image(image_info['file_path'], use_column_width=True)
@@ -197,22 +202,22 @@ def display_selected_image():
         ss['text_input'] = ss['last_search_tags']
         st.rerun()
 
-def show_search_result():
+def show_search_result() -> None:
     global image_files_name_tags_arr
     global args
 
     load_model()
     similar_docs = find_similar_documents(model, search_tags, topn=2000) 
 
-    found_docs_info = []
+    found_docs_info: List[Dict[str, Any]] = []
     for doc_id, similarity in similar_docs:
         try:
             found_img_info_splited = image_files_name_tags_arr[doc_id].split(',')
             if is_include_ng_word(found_img_info_splited):
                 continue
-            print(f'Image ID: {doc_id}, Similarity: {similarity}, Tags: {image_files_name_tags_arr[doc_id]}')
-            found_fpath = found_img_info_splited[0]
-            if args.rep:
+            # print(f'Image ID: {doc_id}, Similarity: {similarity}, Tags: {image_files_name_tags_arr[doc_id]}')
+            found_fpath: str = found_img_info_splited[0]
+            if args is not None and args.rep:
                 found_fpath = found_fpath.replace(args.rep[0], args.rep[1])
             # Collect image info
             found_docs_info.append({
@@ -226,7 +231,7 @@ def show_search_result():
             print(f'Error: {e}')
             continue    
 
-    pages = convert_data_structure(found_docs_info)
+    pages: List[List[List[Dict[str, Any]]]] = convert_data_structure(found_docs_info)
     init_session_state(pages)
 
 def load_model():
@@ -247,12 +252,12 @@ def load_model():
     index = MatrixSimilarity.load("lsi_index")
     dictionary = pickle.load(open("lsi_dictionary", "rb"))
 
-def main():
+def main() -> None:
     global search_tags
     global args
     global ss
 
-    parser = argparse.ArgumentParser()
+    parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('--rep', nargs=2, required=False, help='replace the string in file path to one you want')
     args = parser.parse_args()
 
