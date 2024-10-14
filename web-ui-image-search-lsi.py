@@ -121,7 +121,7 @@ def slideshow() -> None:
         print(f'Error: {e}')
         ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
         st.rerun()
-        return
+
     if st.button('Stop'):
         ss['slideshow_active'] = False
         ss['slideshow_index'] = 0
@@ -144,7 +144,6 @@ def display_images() -> None:
                 ss['slideshow_active'] = True
                 ss['slideshow_index'] = 0
                 st.rerun()
-                return
 
             for data_per_page in ss['data'][ss['page_index']]:
                 cols = st.columns(5)
