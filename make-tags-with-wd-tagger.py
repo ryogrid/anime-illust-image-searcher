@@ -1,4 +1,4 @@
-import os
+import os, time
 import numpy as np
 import onnxruntime as rt
 from huggingface_hub import hf_hub_download
@@ -253,8 +253,9 @@ class Predictor:
                     print(f'{cnt} files processed')
                     diff = now - start
                     print('{:.2f} seconds elapsed'.format(diff))
-                    time_per_file = diff / cnt
-                    print('{:.4f} seconds per file'.format(time_per_file))
+                    if cnt > 0:
+                        time_per_file = diff / cnt
+                        print('{:.4f} seconds per file'.format(time_per_file))
                     print("", flush=True)
 
                 cnt += 1
