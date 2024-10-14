@@ -14,7 +14,11 @@
 - ( Web UI is implemented with StreamLit )
 
 ## Usage
-- $ pip install -r requirements.txt
+- (collect working confirmed environment)
+  - (Windows 11 Pro 64bit 23H2)
+  - Python 3.10.4
+  - pip 22.0.4
+- $ pip install -r requirements.txt 
 - $ python make-tags-with-wd-tagger.py --dir "IMAGE FILES CONTAINED DIR PATH"
   - The script searches directory structure recursively :)
   - This takes quite a while...
