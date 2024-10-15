@@ -33,7 +33,7 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
     all_weight: int = 0
     for tag in tags:
         tag_splited: List[str] = tag.split(":")
-        if len(tag_splited) == 2:
+        if len(tag_splited) == 2 and tag_splited[1].isnumeric():
             tag_and_weight_list.append((tag_splited[0], int(tag_splited[1])))
             all_weight += int(tag_splited[1])
         else:
@@ -55,7 +55,7 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
     return query_lsi
 
 def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
-    query_bow: List[Tuple[int, int]] = dictionary.doc2bow(simple_preprocess(new_doc))
+    query_bow: List[Tuple[int, int]] = dictionary.doc2bow(new_doc.split(' '))
     query_lsi = normalize_and_apply_weight_lsi(query_bow, new_doc)
     #query_lsi: List[Tuple[int, float]] = model[query_bow]
 
