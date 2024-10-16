@@ -7,7 +7,7 @@ import pickle
 import argparse
 import streamlit as st
 import time
-from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol
+from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol, SupportsIndex
 
 # $ streamlit run web-ui-image-search-lsi.py
 
@@ -29,40 +29,81 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
     tags: List[str] = new_doc.split(" ")
 
     # parse tag:weight format
-    tag_and_weight_list: List[Tuple[str, float]] = []
-    all_weight: int = 0
+    is_exist_negative_weight: bool = False
+    tag_and_weight_list: List[Tuple[str, int]] = []
+    # all_weight: int = 0
     for tag in tags:
         tag_splited: List[str] = tag.split(":")
-        if len(tag_splited) == 2 and tag_splited[1].isnumeric():
-            tag_and_weight_list.append((tag_splited[0], int(tag_splited[1])))
-            all_weight += int(tag_splited[1])
+        if len(tag_splited) == 2:
+            # replace is for specific type of tags
+            tag_elem: str = tag_splited[0].replace('\\(', '(').replace('\\)', ')')
+            tag_and_weight_list.append((tag_elem.replace('(', '\\(').replace(')', '\\)'), int(tag_splited[1])))
+            # all_weight += int(tag_splited[1])
         else:
-            tag_and_weight_list.append((tag_splited[0], 1))
-            all_weight += 1
+            # replace is for specific type of tags
+            tag_elem: str = tag_splited[0].replace('\\(', '(').replace('\\)', ')')
+            tag_and_weight_list.append((tag_elem.replace('(', '\\(').replace(')', '\\)'), 1))
+            # all_weight += 1
 
+    query_bow_local: List[Tuple[int, int]] = []
     # apply weight to query_bow
     for tag, weight in tag_and_weight_list:
         tag_id: int = dictionary.token2id[tag]
-        for ii in range(len(query_bow)):
+        for ii, _ in enumerate(query_bow):
             if query_bow[ii][0] == tag_id:
-                query_bow[ii] = (query_bow[ii][0], query_bow[ii][1]*weight)
+                if weight >= 1:
+                    query_bow_local.append((query_bow[ii][0], query_bow[ii][1]*weight))
+                elif weight < 0:
+                    # ignore this elem weight here
+                    query_bow_local.append((query_bow[ii][0], 0))
+                    is_exist_negative_weight = True
+
                 break
 
-    query_lsi: List[Tuple[int, float]] = model[query_bow]
+    query_lsi: List[Tuple[int, float]] = model[query_bow_local]
 
-    # normalize query with tag num
-    query_lsi = [(tag_id, tag_value / all_weight) for tag_id, tag_value in query_lsi]
+    # reset
+    query_bow_local = []
+
+    if is_exist_negative_weight:
+        for tag, weight in tag_and_weight_list:
+            tag_id: int = dictionary.token2id[tag]
+            for ii, _ in enumerate(query_bow):
+                if query_bow[ii][0] == tag_id:
+                    if weight >= 1:
+                        query_bow_local.append((query_bow[ii][0], 0))
+                    elif weight < 0:
+                        # negative weighted tags value is changed to positive and multiplied by weight
+                        query_bow_local.append((query_bow[ii][0], -1*weight))
+
+                    break
+
+        query_lsi_neg: List[Tuple[int, float]] = model[query_bow_local]
+
+        # query_lsi - query_lsi_neg
+        query_lsi_tmp: List[Tuple[int, float]] = []
+        for ii, _ in query_lsi:
+            query_lsi_tmp.append((query_lsi[ii][0], query_lsi[ii][1] - query_lsi_neg[ii][1]))
+        query_lsi = query_lsi_tmp
+
+    # # normalize query with tag num
+    # if all_weight > 0:
+    #     query_lsi = [(tag_id, tag_value / all_weight) for tag_id, tag_value in query_lsi]
     return query_lsi
 
 def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
-    query_bow: List[Tuple[int, int]] = dictionary.doc2bow(new_doc.split(' '))
+    # when getting bow presentaton, weight description is removed
+    # because without it, weighted tag is not found in the dictionary
+    splited_doc = [x.split(":")[0] for x in new_doc.split(' ')]
+    query_bow: List[Tuple[int, int]] = dictionary.doc2bow(splited_doc)
+
     query_lsi = normalize_and_apply_weight_lsi(query_bow, new_doc)
     #query_lsi: List[Tuple[int, float]] = model[query_bow]
 
     sims: List[Tuple[int, float]] = index[query_lsi]
 
     sims = sorted(enumerate(sims), key=lambda item: -item[1])
-    sims = [x for x in sims if x[1] > 0.1]
+    sims = [x for x in sims if x[1] > 0.01]
 
     ret_len: int = topn
     if ret_len > len(sims):
