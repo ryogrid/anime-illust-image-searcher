@@ -32,11 +32,7 @@ def find_similar_documents(model: LsiModel, new_doc: str, topn: int = 50) -> Lis
     sims: List[Tuple[int, float]] = index[query_lsi]
 
     sims = sorted(enumerate(sims), key=lambda item: -item[1])
-    sims_filtered: List[Tuple[int, float]] = [x for x in sims if x[1] > 0.1]
-    if len(sims_filtered) > 30:
-        sims = sims_filtered
-    else:
-        sims = sims[:30]
+    sims = [x for x in sims if x[1] > 0.1]
 
     ret_len: int = topn
     if ret_len > len(sims):
