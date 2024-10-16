@@ -20,7 +20,8 @@ def read_documents_and_gen_idx_text(file_path: str) -> List[List[str]]:
 
                 # join tags with space for gensim
                 tags_line: str = ' '.join(row)
-                tokens: List[str] = simple_preprocess(tags_line.strip())
+                # tokens: List[str] = simple_preprocess(tags_line.strip())
+                tokens: List[str] = row
                 # ignore simple_preprocess failure case and short tags image
                 if tokens and len(tokens) >= 3:
                     corpus_base.append(tokens)
