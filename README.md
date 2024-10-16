@@ -37,7 +37,7 @@
   - This takes quite a while...
     - LSI processing: dimension reduction with [Singular Value Decomposition (SVD)](https://en.wikipedia.org/wiki/Singular_value_decomposition)
     - Take several secs only for 1000 files and reduction from 800 to 700 dimension case (case of demo on later section)
-    - But, in 330k files and from 8000 to 5000 dimension case, about 1 hour is taken
+    - But, in 340k files and from 7500 to 6000 dimension case, about 3.5 hour are taken
       - files are not for demo :)
 - $ streamlit run web-ui-image-search-lsi.py
   - Search app is opend on your web browser
