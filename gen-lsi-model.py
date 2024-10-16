@@ -4,6 +4,7 @@ from gensim.similarities import MatrixSimilarity
 from gensim.utils import simple_preprocess
 import pickle
 from typing import List, Tuple
+import logging
 
 # generate corpus for gensim and index text file for search tool
 def read_documents_and_gen_idx_text(file_path: str) -> List[List[str]]:
@@ -35,6 +36,12 @@ def read_documents(filename: str) -> List[str]:
     return documents
 
 def main() -> None:
+    format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    logging.basicConfig(
+        format=format_str,
+        level=logging.DEBUG
+    )
+
     processed_docs: List[List[str]] = read_documents_and_gen_idx_text('tags-wd-tagger.txt')
 
     # image file => doc_id
