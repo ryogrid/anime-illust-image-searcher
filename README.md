@@ -19,7 +19,7 @@
   - Python 3.10.4
   - pip 22.0.4
 - $ pip install -r requirements.txt 
-- $ python make-tags-with-wd-tagger.py --dir "IMAGE FILES CONTAINED DIR PATH"
+- $ python tagging.py --dir "IMAGE FILES CONTAINED DIR PATH"
   - The script searches directory structure recursively :)
   - This takes quite a while...
     - About 0.5 sec/file at middle spec desktop PC (GPU is not used)
@@ -28,18 +28,20 @@
       - Plese see [here](https://onnxruntime.ai/docs/execution-providers/)
       - Performance key is processing speed of ONNX Runtime at your machine :)
   - Image files and tags of these are saved to tags-wd-tagger.txt
-- $ python count-unique-tag-num.py
+- $ python counttag.py
   - => for deciding appropriate dimension scale fitting your data
-- $ python gen-lsi-model.py
-  - **Please edit [num_topics paramater](https://github.com/ryogrid/local-illust-image-searcher/blob/main/gen-lsi-model.py#L51) before execution**
-  - I think about 80% of unique tags which is counted with count-unique-tag-num.py is better
-    - EX: unique tags count is 1000 -> 0.8 * 1000 -> 800 num_topics (dimension)
+  - unique tag count is shown
+- $ python genmodel.py --dim MODEL_DIMENSION
+  - MODEL_DIMENSION is integer which specify dimension of latent sementic representation
+    - Dimension after applying LSI
+  - I think that 80% of unique tags which is counted with counttag.py is better
+    - EX: unique tags count is 1000 -> 0.8 * 1000 -> 800 (dimension)
   - This takes quite a while...
     - LSI processing: dimension reduction with [Singular Value Decomposition (SVD)](https://en.wikipedia.org/wiki/Singular_value_decomposition)
     - Take several secs only for 1000 files and reduction from 800 to 700 dimension case (case of demo on later section)
     - But, in 330k files and from 8000 to 5000 dimension case, about 1 hour is taken
       - files are not for demo :)
-- $ streamlit run web-ui-image-search-lsi.py
+- $ streamlit run webui.py
   - Search app is opend on your web browser
 
 ## Tips (Attention)
