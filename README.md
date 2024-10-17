@@ -61,7 +61,7 @@
   - Solution
     - Search words you want to use from taggs-wd-tagger.txt with grep, editor or something for existance checking
     - If exist, there is no problem. If not, you should think similar words and search it in same manner :)
-- **Specifying Eath Tag Weight (format -> TAG:WEIGHT, Weight shoud be integer)**
+- **Specifying Eath Tag Weight (format -> TAG:WEIGHT, WEIGHT shoud be integer)**
   - Example
     - "girl:3 dragon"
     - "girl:2 boy:3"
