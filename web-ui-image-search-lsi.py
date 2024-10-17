@@ -19,7 +19,7 @@ model: Optional[LsiModel] = None
 index: Optional[MatrixSimilarity] = None
 dictionary: Optional[Any] = None
 
-SIMILARITY_THRESHOLD: float = 0.6
+SIMILARITY_THRESHOLD: float = 0.1
 
 NG_WORDS: List[str] = ['language', 'english_text', 'pixcel_art']
 
@@ -183,10 +183,20 @@ def update_index(session_key: str, num: int, max_val: Optional[int] = None) -> N
     global ss
 
     if max_val:
+        # to Last
+        if num == max_val:
+            ss[session_key] = max_val - 1
+            st.rerun()
+        # Next
         if ss[session_key] < max_val - num:
             ss[session_key] += num
             st.rerun()
     else:
+        # to Top
+        if num == 0:
+            ss[session_key] = 0
+            st.rerun()
+        # Prev
         if ss[session_key] >= -num:
             ss[session_key] += num
             st.rerun()
@@ -276,12 +286,16 @@ def display_images() -> None:
             pagination()
 
 def pagination() -> None:
-    col1, col2, col3 = st.columns([2, 8, 2])
-    if col1.button('Prev'):
+    col1, col2, col3, col4, col5 = st.columns([2, 2, 8, 2, 2])
+    if col1.button('Top'):
+        update_index('page_index', 0)
+    if col2.button('Prev'):
         update_index('page_index', -1)
-    if col3.button('Next'):
+    if col4.button('Next'):
         update_index('page_index', 1, len(ss['data']))
-    col2.markdown(
+    if col5.button('Last'):
+        update_index('page_index', len(ss['data']), len(ss['data']))
+    col3.markdown(
         f'''
         <div style='text-align: center;'>
             {ss['page_index'] + 1} / {len(ss['data'])}
