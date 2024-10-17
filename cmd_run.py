@@ -15,9 +15,9 @@ def main() -> None:
     args: argparse.Namespace = parser.parse_args()
 
     if args.command[0] == 'tagging':
-        tagging.main(sys.argv)
+        tagging.main(sys.argv[2:])
     elif args.command[0] == 'genmodel':
-        genmodel.main(sys.argv)
+        genmodel.main(sys.argv[2:])
     elif args.command[0] == 'counttag':
         counttag.main()
     else:
