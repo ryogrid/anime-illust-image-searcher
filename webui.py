@@ -1,3 +1,5 @@
+import sys
+
 from gensim.models.lsimodel import LsiModel
 from gensim.similarities import MatrixSimilarity
 from numpy import ndarray
@@ -259,6 +261,25 @@ def slideshow() -> None:
 def is_now_slideshow() -> bool:
     return 'slideshow_active' in ss and ss['slideshow_active']
 
+def export_result_to_file() -> None:
+    if sys.platform == 'win32':
+        encoding = 'shift_jis'
+    else:
+        encoding = 'utf-8'
+
+    # name convention: "{search_tags}" + "_" + {timestamp} + ".txt"
+    output_file_path: str = f"{search_tags.replace(' ', '_').replace(':', '_') }_{int(time.time())}.txt"
+
+    with open(output_file_path, 'w', encoding=encoding) as f:
+        for page in ss['data']:
+            for row in page:
+                for image_info in row:
+                    try:
+                        f.write(f"{image_info['file_path']}\n")
+                    except Exception as e:
+                        print(f'Error: {e}')
+                        continue
+
 def display_images() -> None:
     global ss
 
@@ -268,6 +289,9 @@ def display_images() -> None:
             if st.button('Slideshow'):
                 ss['slideshow_active'] = True
                 ss['slideshow_index'] = 0
+                st.rerun()
+            if st.button('Export'):
+                export_result_to_file()
                 st.rerun()
 
             for data_per_page in ss['data'][ss['page_index']]:
@@ -327,7 +351,7 @@ def show_search_result() -> None:
     global args
 
     load_model()
-    similar_docs: List[Tuple[int, float]] = find_similar_documents(search_tags, topn=2000)
+    similar_docs: List[Tuple[int, float]] = find_similar_documents(search_tags, topn=800)
 
     found_docs_info: List[Dict[str, Any]] = []
     for doc_id, similarity in similar_docs:
