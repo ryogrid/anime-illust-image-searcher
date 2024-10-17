@@ -91,9 +91,9 @@
   - Current implemenataion uses all keywords faialy. But there is many cases that users want to emphasize specific keyword and can't get appropriate results without that!
 - [ ] Incremental index updating at image files increasing
 - [ ] Similar image search with specifying a image file 
-- [ ] Exporting found files list feature
+- [x] Exporting found files list feature
   - In text file. Once you get list, many other tools and viewer you like can be used :)
-- [ ] Making binary package of this app which doesn't need python environment building
+- [x] Making binary package of this app which doesn't need python environment building
 
 
 ## Screenshots of Demo
