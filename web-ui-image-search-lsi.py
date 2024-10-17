@@ -1,13 +1,14 @@
 from gensim.models.lsimodel import LsiModel
-from gensim.utils import simple_preprocess
 from gensim.similarities import MatrixSimilarity
+from numpy import ndarray
 from streamlit.runtime.state import SessionStateProxy
 import pickle
 
+import numpy as np
 import argparse
 import streamlit as st
 import time
-from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol, SupportsIndex
+from typing import List, Tuple, Dict, Any, Optional, Protocol
 
 # $ streamlit run web-ui-image-search-lsi.py
 
@@ -18,12 +19,52 @@ model: Optional[LsiModel] = None
 index: Optional[MatrixSimilarity] = None
 dictionary: Optional[Any] = None
 
+SIMILARITY_THRESHOLD: float = 0.6
+
 NG_WORDS: List[str] = ['language', 'english_text', 'pixcel_art']
 
 class Arguments(Protocol):
     rep: List[str]
 
 args: Optional[Arguments] = None
+
+# sorted_scores: sorted_scores[N] >= sorted_scores[N+1]
+def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple[int,float]]:
+    # sorted_scores: Any = scores[scores.argsort()[:-1]]
+    # difs: ndarray = sorted_scores[:-1] - sorted_scores[1:]
+    scores: List[float] = [sorted_scores[i][1] for i in range(len(sorted_scores))]
+    scores_ndarr: ndarray = np.array(scores)
+    max_val = scores_ndarr.max()
+    scores_ndarr = scores_ndarr / max_val
+    idxes_ndarr = np.where(scores_ndarr > SIMILARITY_THRESHOLD)
+
+    return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in idxes_ndarr[0]]
+
+# # sorted_scores: sorted_scores[N] >= sorted_scores[N+1]
+# def mcut_threshold(sorted_scores: List[Tuple[int, float]]) -> float:
+#     """
+#     Maximum Cut Thresholding (MCut)
+#     Largeron, C., Moulin, C., & Gery, M. (2012). MCut: A Thresholding Strategy
+#     for Multi-label Classification. In 11th International Symposium, IDA 2012
+#     (pp. 172-183).
+#     """
+#     # sorted_scores: Any = scores[scores.argsort()[:-1]]
+#     # difs: ndarray = sorted_scores[:-1] - sorted_scores[1:]
+#     difs: List[float] = [sorted_scores[i + 1][1] - sorted_scores[i][1] for i in range(len(sorted_scores) - 1)]
+#     tmp_list : List[float] = []
+#     # Replace 0 with -inf (same image files exist case)
+#     for idx, val in enumerate(difs):
+#         if val == 0:
+#             tmp_list.append(-np.inf)
+#         else:
+#             tmp_list.append(val)
+#     difs_ndarr: ndarray = np.array(difs)
+#
+#     t: signedinteger = difs_ndarr.argmax()
+#     thresh: float = (sorted_scores[t][1] + sorted_scores[t + 1][1]) / 2
+#
+#     # score should be >= thresh
+#     return thresh
 
 def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: str) -> List[Tuple[int, float]]:
     tags: List[str] = new_doc.split(" ")
@@ -61,6 +102,7 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
                 break
 
     query_lsi: List[Tuple[int, float]] = model[query_bow_local]
+    # query_lsi: List[Tuple[int, float]] = model.__getitem__(query_bow_local, scaled=True)
 
     # reset
     query_bow_local = []
@@ -79,6 +121,7 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
                     break
 
         query_lsi_neg: List[Tuple[int, float]] = model[query_bow_local]
+        # query_lsi_neg: List[Tuple[int, float]] = model.__getitem__(query_bow_local, scaled=True)
 
         # query_lsi - query_lsi_neg
         query_lsi_tmp: List[Tuple[int, float]] = []
@@ -103,7 +146,12 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     sims: List[Tuple[int, float]] = index[query_lsi]
 
     sims = sorted(enumerate(sims), key=lambda item: -item[1])
-    sims = [x for x in sims if x[1] > 0.01]
+    # sims = [x for x in sims if x[1] > 0.01]
+
+    # thresh = mcut_threshold(sims)
+    # sims = [x for x in sims if x[1] >= thresh]
+
+    sims = filter_searched_result(sims)
 
     ret_len: int = topn
     if ret_len > len(sims):
