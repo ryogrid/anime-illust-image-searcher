@@ -44,6 +44,18 @@
 - $ streamlit run webui.py
   - Search app is opend on your web browser
 
+## Usage (Binary Package of Windows at Release Page)
+- Same with above except that you need not to execute python and execution path (current path) is little bit different :)
+- First, unzip package and launch command prompt or PowerShell :)
+- $ cd anime-illust-image-searcher-pkg
+- $ .\cmd_run\cmd_run.exe tagging --dir "IMAGE FILES CONTAINED DIR PATH"
+- $ .\cmd_run\cmd_run.exe counttag
+  - Confirm unique tag num
+- $ .\cmd_run\cmd_run.exe genmodel --dim MODEL_DIMENSION
+  - Same with above :)
+- $ .\run_webui.exe
+  - Search app is opend on your web browser!
+
 ## Tips (Attention)
 - Words (tags) which were not apeeared at tagging are not usable on query
   - Solution
