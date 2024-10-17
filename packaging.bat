@@ -20,11 +20,8 @@ IF NOT EXIST "%output_dir%" (
     MKDIR "%output_dir%"
 )
 
-REM For each Python script in the input directory
-FOR %%f IN ("%input_dir%\*.py") DO (
-    REM Package the script into an executable without the onefile option
-    pyinstaller --distpath "%output_dir%" --workpath "%output_dir%\build" --specpath "%output_dir%\spec" --noconfirm "%%f"
-)
+REM Package the script into an executable without the onefile option
+pyinstaller --distpath "%output_dir%" --workpath "%output_dir%\build" --specpath "%output_dir%\spec" --noconfirm "%input_dir%\cmd_run.py
 
 REM Clean up build and spec files
 RMDIR /S /Q "%output_dir%\build"
