@@ -246,4 +246,4 @@ def main(arg_str: list[str]) -> None:
     predictor.process_directory(args.dir[0])
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main(sys.argv[1:])

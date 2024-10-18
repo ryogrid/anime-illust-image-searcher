@@ -71,4 +71,4 @@ def main(arg_str: list[str]) -> None:
     index.save("lsi_index")
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main(sys.argv[1:])
