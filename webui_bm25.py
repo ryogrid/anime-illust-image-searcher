@@ -114,7 +114,7 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
 
     return query_lsi
 
-def compute_bm25_scores(query_terms: List[str]) -> ndarray:
+def compute_bm25_scores(query_terms: List[str] = [], query_weights: Optional[Dict[int, float]] = None) -> ndarray:
     global bm25_corpus
     global bm25_doc_lengths
     global bm25_avgdl
@@ -125,8 +125,11 @@ def compute_bm25_scores(query_terms: List[str]) -> ndarray:
     b = 0.75  # BM25 parameter
 
     # Convert query terms to term IDs
-    query_term_ids = [dictionary.token2id.get(term, None) for term in query_terms if term in dictionary.token2id]
-    query_term_ids = [term_id for term_id in query_term_ids if term_id is not None]
+    if query_weights is not None:
+        query_term_ids = list(query_weights.keys())
+    else:
+        query_term_ids = [dictionary.token2id.get(term, None) for term in query_terms if term in dictionary.token2id]
+        query_term_ids = [term_id for term_id in query_term_ids if term_id is not None]
 
     # Initialize scores
     scores = np.zeros(bm25_D)
@@ -139,27 +142,36 @@ def compute_bm25_scores(query_terms: List[str]) -> ndarray:
         denom = tfs + k1 * (1 - b + b * (dl / bm25_avgdl))
         numer = tfs * (k1 + 1)
         score = idf * (numer / denom)
-        scores += score
+
+        # Apply query term weight
+        if query_weights is not None:
+            weight = query_weights.get(term_id, 1.0)
+        else:
+            weight = 1.0
+
+        scores += weight * score
 
     return scores
 
+
+def is_include_ng_word(tags: List[str]) -> bool:
+    for ng_word in NG_WORDS:
+        if ng_word in tags:
+            return True
+    return False
+
 def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
-    # when getting bow presentation, weight description is removed
-    # because with it, weighted tag is not found in the dictionary
+    # Remove weight descriptions to get BoW representation
     splited_doc = [x.split(":")[0] for x in new_doc.split(' ')]
     query_bow: List[Tuple[int, int]] = dictionary.doc2bow(splited_doc)
+
     query_lsi = normalize_and_apply_weight_lsi(query_bow, new_doc)
+
     # Existing similarity scores using LSI
     sims_lsi: ndarray = index[query_lsi]
 
-    splited_doc_no_neg = []
-    # no weiht value or positive weight only
-    for x in new_doc.split(' '):
-        splited = x.split(':')
-        if len(splited) == 1 or int(splited[1]) > 0:
-            splited_doc_no_neg.append(splited[0])     
     # BM25 scores
-    bm25_scores = compute_bm25_scores(splited_doc_no_neg)
+    bm25_scores = compute_bm25_scores(splited_doc)
 
     # Normalize scores
     if sims_lsi.max() > 0:
@@ -174,18 +186,109 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     sims = list(enumerate(final_scores))
     sims = sorted(sims, key=lambda item: -item[1])
 
-    sims = filter_searched_result(sims)
+    if len(sims) > 10:
+        # Perform rescoring
+        top10_sims = sims[:10]  # Top 10 documents
+        top10_doc_ids = [doc_id for doc_id, _ in top10_sims]
+        top10_doc_ids_set = set(top10_doc_ids)
 
-    ret_len: int = topn
-    if ret_len > len(sims):
-        ret_len = len(sims)
-    return sims[:ret_len]
+        # Calculate weighted average LSI vector and weighted average BoW for BM25
+        total_weight = sum(score for _, score in top10_sims)
+        weighted_sum_lsi = np.zeros(model.num_topics)
+        weighted_bow = {}
 
-def is_include_ng_word(tags: List[str]) -> bool:
-    for ng_word in NG_WORDS:
-        if ng_word in tags:
-            return True
-    return False
+        for (doc_id, score) in top10_sims:
+            # Retrieve document tags
+            tokens = image_files_name_tags_arr[doc_id].split(',')
+            tags = tokens[1:]  # Exclude file path
+
+            # Convert to BoW
+            doc_bow = dictionary.doc2bow(tags)
+
+            # Update weighted BoW for BM25
+            for term_id, freq in doc_bow:
+                weighted_bow[term_id] = weighted_bow.get(term_id, 0) + freq * score
+
+            # Get LSI vector
+            doc_lsi = model[doc_bow]
+
+            # Convert sparse vector to dense vector
+            doc_dense = np.zeros(model.num_topics)
+            for idx, val in doc_lsi:
+                doc_dense[idx] = val
+
+            # Weighted addition
+            weighted_sum_lsi += doc_dense * score
+
+        # Compute average LSI vector
+        weighted_avg_lsi = weighted_sum_lsi / total_weight
+
+        # Convert average LSI vector to sparse format
+        weighted_avg_lsi_sparse = [(idx, val) for idx, val in enumerate(weighted_avg_lsi) if val != 0]
+
+        # Rescore using LSI index
+        rescored_sims_lsi = index[weighted_avg_lsi_sparse]
+
+        # Prepare weighted query terms and weights for BM25
+        # Normalize weighted_bow by total_weight
+        query_term_weights = {term_id: freq / total_weight for term_id, freq in weighted_bow.items()}
+
+        # Compute BM25 scores for weighted query
+        rescored_bm25_scores = compute_bm25_scores(query_weights=query_term_weights)
+
+        # Normalize rescored scores
+        rescored_sims_lsi = np.array(rescored_sims_lsi)
+        if rescored_sims_lsi.max() > 0:
+            rescored_sims_lsi = rescored_sims_lsi / rescored_sims_lsi.max()
+        if rescored_bm25_scores.max() > 0:
+            rescored_bm25_scores = rescored_bm25_scores / rescored_bm25_scores.max()
+
+        # Combine rescored LSI and BM25 scores
+        rescored_final_scores = BM25_WEIGHT * rescored_bm25_scores + LSI_WEIGHT * rescored_sims_lsi
+
+        # Convert rescored scores to list
+        rescored_sims_list = list(enumerate(rescored_final_scores))
+
+        # Exclude top 10 documents
+        rescored_sims_list = [item for item in rescored_sims_list if item[0] not in top10_doc_ids_set]
+
+        # Set the scores of top 10 documents to 1
+        final_sims = []
+        for idx, (doc_id, _) in enumerate(top10_sims):
+            final_sims.append((doc_id, 1.0))
+
+        # Add remaining documents
+        final_sims.extend(rescored_sims_list)
+
+        # Define custom sorting key
+        def sorting_key(item):
+            doc_id, score = item
+            if doc_id in top10_doc_ids_set:
+                idx = top10_doc_ids.index(doc_id)
+                return (-2, idx)  # Maintain order for top 10
+            else:
+                return (-1, -score)  # Sort remaining by score
+
+        # Sort
+        final_sims = sorted(final_sims, key=sorting_key)
+
+        # Apply threshold filtering
+        final_sims = filter_searched_result(final_sims)
+
+        # Return results
+        ret_len = topn
+        if ret_len > len(final_sims):
+            ret_len = len(final_sims)
+        return final_sims[:ret_len]
+
+    else:
+        # Apply threshold filtering
+        sims = filter_searched_result(sims)
+        ret_len: int = topn
+        if ret_len > len(sims):
+            ret_len = len(sims)
+        return sims[:ret_len]
+
 
 def init_session_state(data: List[Any] = []) -> None:
     global ss
