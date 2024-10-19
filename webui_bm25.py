@@ -60,13 +60,13 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
         tag_splited: List[str] = tag.split(":")
         if len(tag_splited) == 2:
             # replace is for specific type of tags
-            tag_elem: str = tag_splited[0].replace('\\(', '(').replace('\\)', ')')
-            tag_and_weight_list.append((tag_elem.replace('(', '\\(').replace(')', '\\)'), int(tag_splited[1])))
+            tag_elem: str = tag_splited[0].replace('\(', '(').replace('\)', ')')
+            tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), int(tag_splited[1])))
             # all_weight += int(tag_splited[1])
         else:
             # replace is for specific type of tags
-            tag_elem: str = tag_splited[0].replace('\\(', '(').replace('\\)', ')')
-            tag_and_weight_list.append((tag_elem.replace('(', '\\(').replace(')', '\\)'), 1))
+            tag_elem: str = tag_splited[0].replace('\(', '(').replace('\)', ')')
+            tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), 1))
 
 
     query_bow_local: List[Tuple[int, int]] = []
@@ -414,6 +414,14 @@ def load_model() -> None:
     index = MatrixSimilarity.load("lsi_index")
     dictionary = pickle.load(open("lsi_dictionary", "rb"))
 
+    if 'bm25_corpus' in ss:
+        bm25_corpus = ss['bm25_corpus']
+        bm25_doc_lengths = ss['bm25_doc_lengths']
+        bm25_avgdl = ss['bm25_avgdl']
+        bm25_idf = ss['bm25_idf']
+        bm25_D = ss['bm25_D']
+        return
+
     # Build BM25 index
     bm25_corpus = []
     doc_lengths = []
@@ -449,6 +457,13 @@ def load_model() -> None:
     for term_id, df in term_doc_freq.items():
         idf = np.log(1 + (bm25_D - df + 0.5) / (df + 0.5))
         bm25_idf[term_id] = idf
+
+    ss['bm25_corpus'] = bm25_corpus
+    ss['bm25_doc_lengths'] = bm25_doc_lengths
+    ss['bm25_avgdl'] = bm25_avgdl
+    ss['bm25_idf'] = bm25_idf
+    ss['bm25_D'] = bm25_D
+
 
 def main() -> None:
     global search_tags
