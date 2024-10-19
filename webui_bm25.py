@@ -145,17 +145,21 @@ def compute_bm25_scores(query_terms: List[str]) -> ndarray:
 
 def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
     # when getting bow presentation, weight description is removed
-    # because without it, weighted tag is not found in the dictionary
+    # because with it, weighted tag is not found in the dictionary
     splited_doc = [x.split(":")[0] for x in new_doc.split(' ')]
     query_bow: List[Tuple[int, int]] = dictionary.doc2bow(splited_doc)
-
     query_lsi = normalize_and_apply_weight_lsi(query_bow, new_doc)
-
     # Existing similarity scores using LSI
     sims_lsi: ndarray = index[query_lsi]
 
+    splited_doc_no_neg = []
+    # no weiht value or positive weight only
+    for x in new_doc.split(' '):
+        splited = x.split(':')
+        if len(splited) == 1 or int(splited[1]) > 0:
+            splited_doc_no_neg.append(splited[0])     
     # BM25 scores
-    bm25_scores = compute_bm25_scores(splited_doc)
+    bm25_scores = compute_bm25_scores(splited_doc_no_neg)
 
     # Normalize scores
     if sims_lsi.max() > 0:
