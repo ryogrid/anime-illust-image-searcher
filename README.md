@@ -22,7 +22,7 @@
 - $ python tagging.py --dir "IMAGE FILES CONTAINED DIR PATH"
   - The script searches directory structure recursively :)
   - This takes quite a while...
-    - About 0.5 sec/file at middle spec desktop PC (GPU is not used)
+    - About 1.7 sec/file at middle spec desktop PC (GPU is not used)
       - AMD Ryzen 7 5700X 8-Core Processor 4.50 GHz
     - You may speed up with editing the script to use CUDAExecutionProvider, CoreMLExecutionProvider and etc :)
       - Plese see [here](https://onnxruntime.ai/docs/execution-providers/)
@@ -81,7 +81,7 @@
 
 ## Information Related to Copylights
 - I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
-- ["WD ViT Tagger v3" model](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) is used for image file tagging
+- ["WD EVA02-Large Tagger v3" model](https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3) is used for image file tagging
 - **I thank to great works of SmilingWolf**
 
 ## TODO
