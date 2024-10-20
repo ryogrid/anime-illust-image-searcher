@@ -39,6 +39,10 @@ bm25_D: int = 0  # Total number of documents
 BM25_WEIGHT: float = 0.5  # BM25 weight (modifiable)
 LSI_WEIGHT: float = 0.5  # LSI weight (modifiable)
 
+# weight at reranking
+ORIGINAL_SCORE_WEIGHT: float = 0.7
+RERANKED_SCORE_WEIGHT: float = 0.3
+
 # sorted_scores: sorted_scores[N] >= sorted_scores[N+1]
 def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple[int,float]]:
     scores: List[float] = [sorted_scores[i][1] for i in range(len(sorted_scores))]
@@ -212,14 +216,19 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
         weighted_mean_vec: List[List[int, float]] = np.average(top10_doc_vectors, axis=0, weights=[score for _, score in top10_sims])
         weighted_mean_vec_with_docid: List[Tuple[int, float]] = [(round(docid), val) for docid, val in weighted_mean_vec.tolist()]
 
-        rescored_final_scores = index[weighted_mean_vec_with_docid]
-        if rescored_final_scores.max() > 0:
-            rescored_final_scores = rescored_final_scores / rescored_final_scores.max()
-        # Convert rescored scores to list
-        rescored_sims_list = list(enumerate(rescored_final_scores))
+        reranked_scores: ndarray = index[weighted_mean_vec_with_docid]
+
+        # ensenble original score and rescored score
+        reranked_final_scores = ORIGINAL_SCORE_WEIGHT * final_scores + RERANKED_SCORE_WEIGHT * reranked_scores
+
+        if reranked_final_scores.max() > 0:
+            reranked_final_scores = reranked_final_scores / reranked_final_scores.max()
+
+        # Convert reranked scores to list
+        reranked_sims_list = list(enumerate(reranked_final_scores))
 
         # make top 10 documents execluded list
-        rescored_sims_list = [item for item in rescored_sims_list if item[0] not in top10_doc_ids_set]
+        reranked_sims_list = [item for item in reranked_sims_list if item[0] not in top10_doc_ids_set]
 
         # Set the scores of top 10 documents to 1
         final_sims = []
@@ -227,7 +236,7 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
             final_sims.append((doc_id, 1.0))
 
         # Add remaining documents
-        final_sims.extend(rescored_sims_list)
+        final_sims.extend(reranked_sims_list)
 
         # Define custom sorting key
         def sorting_key(item):
