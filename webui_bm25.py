@@ -135,9 +135,9 @@ def compute_bm25_scores(query_terms: List[str] = [], query_weights: Optional[Dic
     scores = np.zeros(bm25_D)
 
     for term_id in query_term_ids:
-        idf = bm25_idf.get(term_id, 0)
+        idf: float = bm25_idf.get(term_id, 0)
         # Collect term frequencies for this term across all documents
-        tfs = np.array([doc.get(term_id, 0) for doc in bm25_corpus])
+        tfs: ndarray = np.array([doc.get(term_id, 0) for doc in bm25_corpus])
         dl = bm25_doc_lengths
         denom = tfs + k1 * (1 - b + b * (dl / bm25_avgdl))
         numer = tfs * (k1 + 1)
@@ -160,9 +160,17 @@ def is_include_ng_word(tags: List[str]) -> bool:
             return True
     return False
 
+# return array([[doc_id, val], [doc_id, val], ...])
+def get_embedded_vector_by_doc_id(doc_id: int) -> ndarray:
+    tags: List[str] = image_files_name_tags_arr[doc_id - 1].split(',')[1:]
+    doc_bow: List[Tuple[int, int]] = dictionary.doc2bow(tags)
+    doc_lsi: List[Tuple[int, float]] = model[doc_bow]
+    return doc_lsi
+
 def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
     # Remove weight descriptions to get BoW representation
-    splited_doc = [x.split(":")[0] for x in new_doc.split(' ')]
+    splited_term = [x for x in new_doc.split(' ')]
+    splited_doc = [x.split(':')[0] for x in splited_term]
     query_bow: List[Tuple[int, int]] = dictionary.doc2bow(splited_doc)
 
     query_lsi = normalize_and_apply_weight_lsi(query_bow, new_doc)
@@ -170,8 +178,17 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     # Existing similarity scores using LSI
     sims_lsi: ndarray = index[query_lsi]
 
+    query_term_and_weight: Dict[int, float] = {}
+    for term in splited_term:
+        term_splited: List[str] = term.split(':')
+        if len(term_splited) == 2:
+            query_term_and_weight[dictionary.token2id[term_splited[0]]] = int(term_splited[1])
+        else:
+            query_term_and_weight[dictionary.token2id[term_splited[0]]] = 1
+
     # BM25 scores
-    bm25_scores = compute_bm25_scores(splited_doc)
+    # bm25_scores = compute_bm25_scores(splited_doc)
+    bm25_scores = compute_bm25_scores(query_weights=query_term_and_weight)
 
     # Normalize scores
     if sims_lsi.max() > 0:
@@ -183,73 +200,25 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     final_scores = BM25_WEIGHT * bm25_scores + LSI_WEIGHT * sims_lsi
 
     # Get top documents
-    sims = list(enumerate(final_scores))
+    sims: List[Tuple[int, float]] = list(enumerate(final_scores))
     sims = sorted(sims, key=lambda item: -item[1])
 
     if len(sims) > 10:
         # Perform rescoring
         top10_sims = sims[:10]  # Top 10 documents
-        top10_doc_ids = [doc_id for doc_id, _ in top10_sims]
+        top10_doc_ids: List[int] = [doc_id for doc_id, _ in top10_sims]
         top10_doc_ids_set = set(top10_doc_ids)
+        top10_doc_vectors: List[ndarray] = [get_embedded_vector_by_doc_id(doc_id + 1) for doc_id in top10_doc_ids]
+        weighted_mean_vec: List[List[int, float]] = np.average(top10_doc_vectors, axis=0, weights=[score for _, score in top10_sims])
+        weighted_mean_vec_with_docid: List[Tuple[int, float]] = [(round(docid), val) for docid, val in weighted_mean_vec.tolist()]
 
-        # Calculate weighted average LSI vector and weighted average BoW for BM25
-        total_weight = sum(score for _, score in top10_sims)
-        weighted_sum_lsi = np.zeros(model.num_topics)
-        weighted_bow = {}
-
-        for (doc_id, score) in top10_sims:
-            # Retrieve document tags
-            tokens = image_files_name_tags_arr[doc_id].split(',')
-            tags = tokens[1:]  # Exclude file path
-
-            # Convert to BoW
-            doc_bow = dictionary.doc2bow(tags)
-
-            # Update weighted BoW for BM25
-            for term_id, freq in doc_bow:
-                weighted_bow[term_id] = weighted_bow.get(term_id, 0) + freq * score
-
-            # Get LSI vector
-            doc_lsi = model[doc_bow]
-
-            # Convert sparse vector to dense vector
-            doc_dense = np.zeros(model.num_topics)
-            for idx, val in doc_lsi:
-                doc_dense[idx] = val
-
-            # Weighted addition
-            weighted_sum_lsi += doc_dense * score
-
-        # Compute average LSI vector
-        weighted_avg_lsi = weighted_sum_lsi / total_weight
-
-        # Convert average LSI vector to sparse format
-        weighted_avg_lsi_sparse = [(idx, val) for idx, val in enumerate(weighted_avg_lsi) if val != 0]
-
-        # Rescore using LSI index
-        rescored_sims_lsi = index[weighted_avg_lsi_sparse]
-
-        # Prepare weighted query terms and weights for BM25
-        # Normalize weighted_bow by total_weight
-        query_term_weights = {term_id: freq / total_weight for term_id, freq in weighted_bow.items()}
-
-        # Compute BM25 scores for weighted query
-        rescored_bm25_scores = compute_bm25_scores(query_weights=query_term_weights)
-
-        # Normalize rescored scores
-        rescored_sims_lsi = np.array(rescored_sims_lsi)
-        if rescored_sims_lsi.max() > 0:
-            rescored_sims_lsi = rescored_sims_lsi / rescored_sims_lsi.max()
-        if rescored_bm25_scores.max() > 0:
-            rescored_bm25_scores = rescored_bm25_scores / rescored_bm25_scores.max()
-
-        # Combine rescored LSI and BM25 scores
-        rescored_final_scores = BM25_WEIGHT * rescored_bm25_scores + LSI_WEIGHT * rescored_sims_lsi
-
+        rescored_final_scores = index[weighted_mean_vec_with_docid]
+        if rescored_final_scores.max() > 0:
+            rescored_final_scores = rescored_final_scores / rescored_final_scores.max()
         # Convert rescored scores to list
         rescored_sims_list = list(enumerate(rescored_final_scores))
 
-        # Exclude top 10 documents
+        # make top 10 documents execluded list
         rescored_sims_list = [item for item in rescored_sims_list if item[0] not in top10_doc_ids_set]
 
         # Set the scores of top 10 documents to 1
@@ -532,7 +501,7 @@ def load_model() -> None:
     # Build BM25 index
     bm25_corpus = []
     doc_lengths = []
-    term_doc_freq = {}
+    term_doc_freq: dict[int, int] = {}
     bm25_D = len(image_files_name_tags_arr)
 
     for line in image_files_name_tags_arr:
@@ -545,7 +514,7 @@ def load_model() -> None:
         term_ids = [term_id for term_id in term_ids if term_id is not None]
 
         # Build term frequency dictionary for the document
-        term_freq = {}
+        term_freq: dict[int, int] = {}
         for term_id in term_ids:
             term_freq[term_id] = term_freq.get(term_id, 0) + 1
 
