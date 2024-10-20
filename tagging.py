@@ -33,7 +33,7 @@ kaomojis: List[str] = [
     "||_||",
 ]
 
-VIT_MODEL_DSV3_REPO: str = "SmilingWolf/wd-vit-tagger-v3"
+TAGGER_VIT_MODEL_REPO: str = "SmilingWolf/wd-eva02-large-tagger-v3"
 MODEL_FILE_NAME: str = "model.onnx"
 LABEL_FILENAME: str = "selected_tags.csv"
 
@@ -123,14 +123,14 @@ class Predictor:
         if self.tagger_model is not None:
             return
 
-        self.tagger_model_path = hf_hub_download(repo_id=VIT_MODEL_DSV3_REPO, filename=MODEL_FILE_NAME)
+        self.tagger_model_path = hf_hub_download(repo_id=TAGGER_VIT_MODEL_REPO, filename=MODEL_FILE_NAME)
         self.tagger_model = rt.InferenceSession(self.tagger_model_path, providers=['CPUExecutionProvider'])
         _, height, _, _ = self.tagger_model.get_inputs()[0].shape
 
         self.model_target_size = height
 
         csv_path: str = hf_hub_download(
-            VIT_MODEL_DSV3_REPO,
+            TAGGER_VIT_MODEL_REPO,
             LABEL_FILENAME,
         )
         tags_df: pd.DataFrame = pd.read_csv(csv_path)
