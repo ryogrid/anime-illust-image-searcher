@@ -30,10 +30,21 @@ class Arguments(Protocol):
 
 args: Optional[Arguments] = None
 
+# BM25 global variables
+bm25_corpus: List[Dict[int, int]] = []
+bm25_doc_lengths: Optional[ndarray] = None
+bm25_avgdl: float = 0
+bm25_idf: Dict[int, float] = {}
+bm25_D: int = 0  # Total number of documents
+BM25_WEIGHT: float = 0.5  # BM25 weight (modifiable)
+LSI_WEIGHT: float = 0.5  # LSI weight (modifiable)
+
+# weight at reranking
+ORIGINAL_SCORE_WEIGHT: float = 0.7
+RERANKED_SCORE_WEIGHT: float = 0.3
+
 # sorted_scores: sorted_scores[N] >= sorted_scores[N+1]
 def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple[int,float]]:
-    # sorted_scores: Any = scores[scores.argsort()[:-1]]
-    # difs: ndarray = sorted_scores[:-1] - sorted_scores[1:]
     scores: List[float] = [sorted_scores[i][1] for i in range(len(sorted_scores))]
     scores_ndarr: ndarray = np.array(scores)
     max_val = scores_ndarr.max()
@@ -41,32 +52,6 @@ def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple
     idxes_ndarr = np.where(scores_ndarr > SIMILARITY_THRESHOLD)
 
     return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in idxes_ndarr[0]]
-
-# # sorted_scores: sorted_scores[N] >= sorted_scores[N+1]
-# def mcut_threshold(sorted_scores: List[Tuple[int, float]]) -> float:
-#     """
-#     Maximum Cut Thresholding (MCut)
-#     Largeron, C., Moulin, C., & Gery, M. (2012). MCut: A Thresholding Strategy
-#     for Multi-label Classification. In 11th International Symposium, IDA 2012
-#     (pp. 172-183).
-#     """
-#     # sorted_scores: Any = scores[scores.argsort()[:-1]]
-#     # difs: ndarray = sorted_scores[:-1] - sorted_scores[1:]
-#     difs: List[float] = [sorted_scores[i + 1][1] - sorted_scores[i][1] for i in range(len(sorted_scores) - 1)]
-#     tmp_list : List[float] = []
-#     # Replace 0 with -inf (same image files exist case)
-#     for idx, val in enumerate(difs):
-#         if val == 0:
-#             tmp_list.append(-np.inf)
-#         else:
-#             tmp_list.append(val)
-#     difs_ndarr: ndarray = np.array(difs)
-#
-#     t: signedinteger = difs_ndarr.argmax()
-#     thresh: float = (sorted_scores[t][1] + sorted_scores[t + 1][1]) / 2
-#
-#     # score should be >= thresh
-#     return thresh
 
 def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: str) -> List[Tuple[int, float]]:
     tags: List[str] = new_doc.split(" ")
@@ -79,14 +64,14 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
         tag_splited: List[str] = tag.split(":")
         if len(tag_splited) == 2:
             # replace is for specific type of tags
-            tag_elem: str = tag_splited[0].replace('\\(', '(').replace('\\)', ')')
-            tag_and_weight_list.append((tag_elem.replace('(', '\\(').replace(')', '\\)'), int(tag_splited[1])))
+            tag_elem: str = tag_splited[0].replace('\(', '(').replace('\)', ')')
+            tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), int(tag_splited[1])))
             # all_weight += int(tag_splited[1])
         else:
             # replace is for specific type of tags
-            tag_elem: str = tag_splited[0].replace('\\(', '(').replace('\\)', ')')
-            tag_and_weight_list.append((tag_elem.replace('(', '\\(').replace(')', '\\)'), 1))
-            # all_weight += 1
+            tag_elem: str = tag_splited[0].replace('\(', '(').replace('\)', ')')
+            tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), 1))
+
 
     query_bow_local: List[Tuple[int, int]] = []
     # apply weight to query_bow
@@ -104,7 +89,6 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
                 break
 
     query_lsi: List[Tuple[int, float]] = model[query_bow_local]
-    # query_lsi: List[Tuple[int, float]] = model.__getitem__(query_bow_local, scaled=True)
 
     # reset
     query_bow_local = []
@@ -123,48 +107,166 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
                     break
 
         query_lsi_neg: List[Tuple[int, float]] = model[query_bow_local]
-        # query_lsi_neg: List[Tuple[int, float]] = model.__getitem__(query_bow_local, scaled=True)
 
         # query_lsi - query_lsi_neg
         query_lsi_tmp: List[Tuple[int, float]] = []
-        for ii, _ in query_lsi:
-            query_lsi_tmp.append((query_lsi[ii][0], query_lsi[ii][1] - query_lsi_neg[ii][1]))
+        for ii in range(len(query_lsi)):
+            index, value = query_lsi[ii]
+            neg_value = query_lsi_neg[ii][1] if ii < len(query_lsi_neg) else 0
+            query_lsi_tmp.append((index, value - neg_value))
         query_lsi = query_lsi_tmp
 
-    # # normalize query with tag num
-    # if all_weight > 0:
-    #     query_lsi = [(tag_id, tag_value / all_weight) for tag_id, tag_value in query_lsi]
     return query_lsi
 
-def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
-    # when getting bow presentaton, weight description is removed
-    # because without it, weighted tag is not found in the dictionary
-    splited_doc = [x.split(":")[0] for x in new_doc.split(' ')]
-    query_bow: List[Tuple[int, int]] = dictionary.doc2bow(splited_doc)
+def compute_bm25_scores(query_terms: List[str] = [], query_weights: Optional[Dict[int, float]] = None) -> ndarray:
+    global bm25_corpus
+    global bm25_doc_lengths
+    global bm25_avgdl
+    global bm25_idf
+    global bm25_D
 
-    query_lsi = normalize_and_apply_weight_lsi(query_bow, new_doc)
-    #query_lsi: List[Tuple[int, float]] = model[query_bow]
+    k1 = 1.5  # BM25 parameter
+    b = 0.75  # BM25 parameter
 
-    sims: List[Tuple[int, float]] = index[query_lsi]
+    # Convert query terms to term IDs
+    if query_weights is not None:
+        query_term_ids = list(query_weights.keys())
+    else:
+        query_term_ids = [dictionary.token2id.get(term, None) for term in query_terms if term in dictionary.token2id]
+        query_term_ids = [term_id for term_id in query_term_ids if term_id is not None]
 
-    sims = sorted(enumerate(sims), key=lambda item: -item[1])
-    # sims = [x for x in sims if x[1] > 0.01]
+    # Initialize scores
+    scores = np.zeros(bm25_D)
 
-    # thresh = mcut_threshold(sims)
-    # sims = [x for x in sims if x[1] >= thresh]
+    for term_id in query_term_ids:
+        idf: float = bm25_idf.get(term_id, 0)
+        # Collect term frequencies for this term across all documents
+        tfs: ndarray = np.array([doc.get(term_id, 0) for doc in bm25_corpus])
+        dl = bm25_doc_lengths
+        denom = tfs + k1 * (1 - b + b * (dl / bm25_avgdl))
+        numer = tfs * (k1 + 1)
+        score = idf * (numer / denom)
 
-    sims = filter_searched_result(sims)
+        # Apply query term weight
+        if query_weights is not None:
+            weight = query_weights.get(term_id, 1.0)
+        else:
+            weight = 1.0
 
-    ret_len: int = topn
-    if ret_len > len(sims):
-        ret_len = len(sims)
-    return sims[:ret_len]
+        scores += weight * score
+
+    return scores
+
 
 def is_include_ng_word(tags: List[str]) -> bool:
     for ng_word in NG_WORDS:
         if ng_word in tags:
             return True
     return False
+
+# return array([[doc_id, val], [doc_id, val], ...])
+def get_embedded_vector_by_doc_id(doc_id: int) -> ndarray:
+    tags: List[str] = image_files_name_tags_arr[doc_id - 1].split(',')[1:]
+    doc_bow: List[Tuple[int, int]] = dictionary.doc2bow(tags)
+    doc_lsi: List[Tuple[int, float]] = model[doc_bow]
+    return doc_lsi
+
+def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
+    # Remove weight descriptions to get BoW representation
+    splited_term = [x for x in new_doc.split(' ')]
+    splited_doc = [x.split(':')[0] for x in splited_term]
+    query_bow: List[Tuple[int, int]] = dictionary.doc2bow(splited_doc)
+
+    query_lsi = normalize_and_apply_weight_lsi(query_bow, new_doc)
+
+    # Existing similarity scores using LSI
+    sims_lsi: ndarray = index[query_lsi]
+
+    query_term_and_weight: Dict[int, float] = {}
+    for term in splited_term:
+        term_splited: List[str] = term.split(':')
+        if len(term_splited) == 2:
+            query_term_and_weight[dictionary.token2id[term_splited[0]]] = int(term_splited[1])
+        else:
+            query_term_and_weight[dictionary.token2id[term_splited[0]]] = 1
+
+    # BM25 scores
+    # bm25_scores = compute_bm25_scores(splited_doc)
+    bm25_scores = compute_bm25_scores(query_weights=query_term_and_weight)
+
+    # Normalize scores
+    if sims_lsi.max() > 0:
+        sims_lsi = sims_lsi / sims_lsi.max()
+    if bm25_scores.max() > 0:
+        bm25_scores = bm25_scores / bm25_scores.max()
+
+    # Combine scores
+    final_scores = BM25_WEIGHT * bm25_scores + LSI_WEIGHT * sims_lsi
+
+    # Get top documents
+    sims: List[Tuple[int, float]] = list(enumerate(final_scores))
+    sims = sorted(sims, key=lambda item: -item[1])
+
+    if len(sims) > 10:
+        # Perform rescoring
+        top10_sims = sims[:10]  # Top 10 documents
+        top10_doc_ids: List[int] = [doc_id for doc_id, _ in top10_sims]
+        top10_doc_ids_set = set(top10_doc_ids)
+        top10_doc_vectors: List[ndarray] = [get_embedded_vector_by_doc_id(doc_id + 1) for doc_id in top10_doc_ids]
+        weighted_mean_vec: List[List[int, float]] = np.average(top10_doc_vectors, axis=0, weights=[score for _, score in top10_sims])
+        weighted_mean_vec_with_docid: List[Tuple[int, float]] = [(round(docid), val) for docid, val in weighted_mean_vec.tolist()]
+
+        reranked_scores: ndarray = index[weighted_mean_vec_with_docid]
+
+        # ensenble original score and rescored score
+        reranked_final_scores = ORIGINAL_SCORE_WEIGHT * final_scores + RERANKED_SCORE_WEIGHT * reranked_scores
+
+        if reranked_final_scores.max() > 0:
+            reranked_final_scores = reranked_final_scores / reranked_final_scores.max()
+
+        # Convert reranked scores to list
+        reranked_sims_list = list(enumerate(reranked_final_scores))
+
+        # make top 10 documents execluded list
+        reranked_sims_list = [item for item in reranked_sims_list if item[0] not in top10_doc_ids_set]
+
+        # Set the scores of top 10 documents to 1
+        final_sims = []
+        for idx, (doc_id, _) in enumerate(top10_sims):
+            final_sims.append((doc_id, 1.0))
+
+        # Add remaining documents
+        final_sims.extend(reranked_sims_list)
+
+        # Define custom sorting key
+        def sorting_key(item):
+            doc_id, score = item
+            if doc_id in top10_doc_ids_set:
+                idx = top10_doc_ids.index(doc_id)
+                return (-2, idx)  # Maintain order for top 10
+            else:
+                return (-1, -score)  # Sort remaining by score
+
+        # Sort
+        final_sims = sorted(final_sims, key=sorting_key)
+
+        # Apply threshold filtering
+        final_sims = filter_searched_result(final_sims)
+
+        # Return results
+        ret_len = topn
+        if ret_len > len(final_sims):
+            ret_len = len(final_sims)
+        return final_sims[:ret_len]
+
+    else:
+        # Apply threshold filtering
+        sims = filter_searched_result(sims)
+        ret_len: int = topn
+        if ret_len > len(sims):
+            ret_len = len(sims)
+        return sims[:ret_len]
+
 
 def init_session_state(data: List[Any] = []) -> None:
     global ss
@@ -380,6 +482,12 @@ def load_model() -> None:
     global image_files_name_tags_arr
     global index
     global dictionary
+    # BM25 variables
+    global bm25_corpus
+    global bm25_doc_lengths
+    global bm25_avgdl
+    global bm25_idf
+    global bm25_D
 
     tag_file_path: str = 'tags-wd-tagger_lsi_idx.csv'
     image_files_name_tags_arr = []
@@ -390,6 +498,57 @@ def load_model() -> None:
     model = LsiModel.load("lsi_model")
     index = MatrixSimilarity.load("lsi_index")
     dictionary = pickle.load(open("lsi_dictionary", "rb"))
+
+    if 'bm25_corpus' in ss:
+        bm25_corpus = ss['bm25_corpus']
+        bm25_doc_lengths = ss['bm25_doc_lengths']
+        bm25_avgdl = ss['bm25_avgdl']
+        bm25_idf = ss['bm25_idf']
+        bm25_D = ss['bm25_D']
+        return
+
+    # Build BM25 index
+    bm25_corpus = []
+    doc_lengths = []
+    term_doc_freq: dict[int, int] = {}
+    bm25_D = len(image_files_name_tags_arr)
+
+    for line in image_files_name_tags_arr:
+        tokens = line.strip().split(',')
+        tags = tokens[1:]  # Assuming the first token is file path
+
+        # Convert tags to term IDs
+        term_ids = [dictionary.token2id.get(tag, None) for tag in tags if tag in dictionary.token2id]
+        # Remove None values
+        term_ids = [term_id for term_id in term_ids if term_id is not None]
+
+        # Build term frequency dictionary for the document
+        term_freq: dict[int, int] = {}
+        for term_id in term_ids:
+            term_freq[term_id] = term_freq.get(term_id, 0) + 1
+
+        bm25_corpus.append(term_freq)
+        doc_lengths.append(len(term_ids))
+
+        # Update document frequency for terms
+        for term_id in term_freq.keys():
+            term_doc_freq[term_id] = term_doc_freq.get(term_id, 0) + 1
+
+    bm25_doc_lengths = np.array(doc_lengths)
+    bm25_avgdl = np.mean(bm25_doc_lengths)
+
+    # Compute IDF for each term
+    bm25_idf = {}
+    for term_id, df in term_doc_freq.items():
+        idf = np.log(1 + (bm25_D - df + 0.5) / (df + 0.5))
+        bm25_idf[term_id] = idf
+
+    ss['bm25_corpus'] = bm25_corpus
+    ss['bm25_doc_lengths'] = bm25_doc_lengths
+    ss['bm25_avgdl'] = bm25_avgdl
+    ss['bm25_idf'] = bm25_idf
+    ss['bm25_D'] = bm25_D
+
 
 def main() -> None:
     global search_tags
