@@ -9,9 +9,13 @@
 - Search Images Matching with Query Texts on Latent Semantic Representation Vector Space
   - Vectors are generated with embedding model: Visual Transformar (ViT) Tagger x Latent Semantic Indexing (LSI)
   - Scores which is calculated with [bm25](https://en.wikipedia.org/wiki/Okapi_BM25) is used in combination
-- LSI is mainly used for Covering Tagging Presision 
-  - You can use tags to search which are difficult for tagging because the index data which is composed of vectors is applyed LSI
-  - implemented with Gensim lib
+  - Internal relanking method is also used
+    - Assumption: Users make queries better asymptotically according to top search results and find appropriate queries eventually
+    - If you wan to know detail of the method, please read webui.py :)
+- LSI is mainly used for Covering Tagging Presision
+  - Simple search logic can be implemented with BM25 only
+  - But, you can use tags to search which are difficult for tagging because the index data which is composed of vectors is applyed LSI
+    - implemented with Gensim lib
 - ( Web UI is implemented with StreamLit )
 
 ## Usage
@@ -91,6 +95,7 @@
     - If CLIP models which are fine tuned with anime style illust images are available, this method is better than current one
 - [x] Weight specifying to tags like prompt format of Stable Diffusion Web UI
   - Current implemenataion uses all tags faialy. But there is many cases that users want to emphasize specific tags and can't get appropriate results without that!
+- [ ] Fix a bug: some type of tags on tags-wd-tagger.txt can't be used on query 
 - [ ] Incremental index updating at image files increasing
 - [ ] Similar image search with specifying a image file 
 - [x] Exporting found files list feature
