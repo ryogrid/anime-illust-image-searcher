@@ -68,12 +68,13 @@
     - "girl:2 boy:3"
     - "girl dragon:2 boy:-3"
       - **Negative weight also can be specified!**
-- Search Result Exporting feature
+- **Search Result Exporting feature**
   - You can export file paths list which is hitted at search
   - Pressing 'Export' button saves the list as text file to path Web UI executed at
   - File name is query text with timestamp and contents is line break delimited
     - Some viewer tools such as [Irfan View](https://www.irfanview.com/) can load image files with passing a text file contains path list :)
     - Irfan View can slideshow also. It's nice :)
+  - At Windows, charactor code is sjis. At other OSes, charactor code is utf-8
 - Character code of file pathes 
   - If file path contains charactors which can't be contered to Unicode or utf-8, scripts may ouput error message at processing the file
   - But, it doesn't mean that your script usage is wrong. Though these files is ignored or not displayed at Web UI :|
