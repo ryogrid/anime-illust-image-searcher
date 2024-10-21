@@ -39,6 +39,8 @@ LABEL_FILENAME: str = "selected_tags.csv"
 
 EXTENSIONS: List[str] = ['.png', '.jpg', '.jpeg', ".PNG", ".JPG", ".JPEG"]
 
+BATCH_SIZE: int = 100
+
 def mcut_threshold(probs: np.ndarray) -> float:
     sorted_probs: np.ndarray = probs[probs.argsort()[::-1]]
     difs: np.ndarray = sorted_probs[:-1] - sorted_probs[1:]
@@ -124,7 +126,8 @@ class Predictor:
             return
 
         self.tagger_model_path = hf_hub_download(repo_id=TAGGER_VIT_MODEL_REPO, filename=MODEL_FILE_NAME)
-        self.tagger_model = rt.InferenceSession(self.tagger_model_path, providers=['CPUExecutionProvider'])
+        # self.tagger_model = rt.InferenceSession(self.tagger_model_path, providers=['CPUExecutionProvider'])
+        self.tagger_model = rt.InferenceSession(self.tagger_model_path, providers=['CUDAExecutionProvider'])
         _, height, _, _ = self.tagger_model.get_inputs()[0].shape
 
         self.model_target_size = height
@@ -142,60 +145,70 @@ class Predictor:
         self.character_indexes = sep_tags[3]
 
     def predict(
-        self,
-        image: Image.Image,
-        general_thresh: float,
-        general_mcut_enabled: bool,
-        character_thresh: float,
-        character_mcut_enabled: bool,
-    ) -> str:
-        img: np.ndarray = self.prepare_image(image)
-
+            self,
+            images: List[Image.Image],
+            general_thresh: float,
+            general_mcut_enabled: bool,
+            character_thresh: float,
+            character_mcut_enabled: bool,
+    ) -> List[str]:
         input_name: str = self.tagger_model.get_inputs()[0].name
         label_name: str = self.tagger_model.get_outputs()[0].name
-        preds: np.ndarray = self.tagger_model.run([label_name], {input_name: img})[0]
 
-        labels: List[Tuple[str, float]] = list(zip(self.tag_names, preds[0].astype(float)))
+        inputs: np.ndarray = None
+        for img in images:
+            if inputs is None:
+                inputs = self.prepare_image(img)
+            else:
+                inputs = np.vstack([inputs, self.prepare_image(img)])
+        print(inputs.shape)
 
-        general_names: List[Tuple[str, float]] = [labels[i] for i in self.general_indexes]
+        preds: List[np.ndarray] = self.tagger_model.run([label_name], {input_name: np.array(inputs)})
+        ret_strings: List[str] = []
+        for idx in range(len(preds)):
+            labels: List[Tuple[str, float]] = list(zip(self.tag_names, preds[idx].astype(float)))
 
-        if general_mcut_enabled:
-            general_probs: np.ndarray = np.array([x[1] for x in general_names])
-            general_thresh = mcut_threshold(general_probs)
+            general_names: List[Tuple[str, float]] = [labels[i] for i in self.general_indexes]
 
-        general_res: Dict[str, float] = {x[0]: x[1] for x in general_names if x[1] > general_thresh}
+            if general_mcut_enabled:
+                general_probs: np.ndarray = np.array([x[1] for x in general_names])
+                general_thresh = mcut_threshold(general_probs)
 
-        character_names: List[Tuple[str, float]] = [labels[i] for i in self.character_indexes]
+            general_res: Dict[str, float] = {x[0]: x[1] for x in general_names if x[1] > general_thresh}
 
-        if character_mcut_enabled:
-            character_probs: np.ndarray = np.array([x[1] for x in character_names])
-            character_thresh = mcut_threshold(character_probs)
-            character_thresh = max(0.15, character_thresh)
+            character_names: List[Tuple[str, float]] = [labels[i] for i in self.character_indexes]
 
-        character_res: Dict[str, float] = {x[0]: x[1] for x in character_names if x[1] > character_thresh}
+            if character_mcut_enabled:
+                character_probs: np.ndarray = np.array([x[1] for x in character_names])
+                character_thresh = mcut_threshold(character_probs)
+                character_thresh = max(0.15, character_thresh)
 
-        sorted_general_strings: List[Tuple[str, float]] = sorted(
-            general_res.items(),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        sorted_general_strings_str : List[str] = [x[0] for x in sorted_general_strings]
-        sorted_general_strings_str = [x.replace(' ', '_') for x in sorted_general_strings_str]
-        ret_string: str = (
-            ",".join(sorted_general_strings_str).replace("(", "\(").replace(")", "\)")
-        )
+            character_res: Dict[str, float] = {x[0]: x[1] for x in character_names if x[1] > character_thresh}
 
-        if len(character_res) > 0:
-            sorted_character_strings: List[Tuple[str, float]] = sorted(
-                character_res.items(),
+            sorted_general_strings: List[Tuple[str, float]] = sorted(
+                general_res.items(),
                 key=lambda x: x[1],
                 reverse=True,
             )
-            sorted_character_strings_str: List[str] = [x[0] for x in sorted_character_strings]
-            sorted_character_strings_str = [x.replace(' ', '_') for x in sorted_character_strings_str]
-            ret_string += ",".join(sorted_character_strings_str).replace("(", "\(").replace(")", "\)")
+            sorted_general_strings_str: List[str] = [x[0] for x in sorted_general_strings]
+            sorted_general_strings_str = [x.replace(' ', '_') for x in sorted_general_strings_str]
+            ret_string: str = (
+                ",".join(sorted_general_strings_str).replace("(", "\(").replace(")", "\)")
+            )
 
-        return ret_string
+            if len(character_res) > 0:
+                sorted_character_strings: List[Tuple[str, float]] = sorted(
+                    character_res.items(),
+                    key=lambda x: x[1],
+                    reverse=True,
+                )
+                sorted_character_strings_str: List[str] = [x[0] for x in sorted_character_strings]
+                sorted_character_strings_str = [x.replace(' ', '_') for x in sorted_character_strings_str]
+                ret_string += ",".join(sorted_character_strings_str).replace("(", "\(").replace(")", "\)")
+
+            ret_strings.append(ret_string)
+
+        return ret_strings
 
     def write_to_file(self, csv_line: str) -> None:
         self.f.write(csv_line + '\n')
@@ -209,14 +222,22 @@ class Predictor:
 
         self.load_model()
 
+        imgs: List[Image.Image] = []
+        fpathes: List[str] = []
         start: float = time.perf_counter()
         cnt: int = 0
         for file_path in file_list:
             try:
                 img: Image.Image = Image.open(file_path)
-                results_in_csv_format: str = self.predict(img, 0.3, True, 0.3, True)
+                imgs.append(img)
+                fpathes.append(file_path)
 
-                self.write_to_file(file_path + ',' + results_in_csv_format)
+                if len(imgs) >= BATCH_SIZE:
+                    results_in_csv_format: List[str] = self.predict(imgs, 0.3, True, 0.3, True)
+                    for idx, line in enumerate(results_in_csv_format):
+                        self.write_to_file(fpathes[idx] + ',' + line)
+                    imgs = []
+                    fpathes = []
 
                 if cnt % 100 == 0:
                     now: float = time.perf_counter()
