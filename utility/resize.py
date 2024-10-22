@@ -1,4 +1,6 @@
+import concurrent
 import os, time
+
 from PIL import Image
 import argparse
 import sys
@@ -40,6 +42,16 @@ def resize_image(image: Image.Image, target_size: int) -> Image.Image:
 
     return padded_image
 
+def resize_th(file_path: str) -> None:
+    try:
+        image: Image.Image = Image.open(file_path)
+        resized_image: Image.Image = resize_image(image, RESEZE_TARGET_SIZE)
+        resized_image.save(file_path)
+    except Exception as e:
+        print(f"Failed to resize image: {file_path}")
+        print(f"Remove: {file_path}")
+        os.remove(file_path)
+
 def main(arg_str: list[str]) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('--dir', nargs=1, required=True, help='resize target directory (ATTENTION: file is overwritten)')
@@ -49,23 +61,16 @@ def main(arg_str: list[str]) -> None:
     file_list: List[str] = list_files_recursive(dir_path)
     cnt = 0
     start = time.perf_counter()
-    for file_path in file_list:
-        try:
-            image: Image.Image = Image.open(file_path)
-            resized_image: Image.Image = resize_image(image, RESEZE_TARGET_SIZE)
-            resized_image.save(file_path)
-        except Exception as e:
-            print(f"Failed to resize image: {file_path}")
-            print(f"Remove: {file_path}")
-            os.remove(file_path)
-
-        cnt += 1
-
-        if cnt % 100 == 0:
-            end = time.perf_counter()
-            print(f"Processed {cnt} images.")
-            print(f"Elapsed time: {end - start:.2f} sec")
-            print(f"throughput: {cnt / (end - start):.2f} images/sec")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+        # dispatch resize task to threads
+        future_to_path = {executor.submit(resize_th, file_path): file_path for file_path in file_list}
+        for _ in concurrent.futures.as_completed(future_to_path):
+            cnt += 1
+            if cnt % 100 == 0:
+                end = time.perf_counter()
+                print(f"Processed {cnt} images.")
+                print(f"Elapsed time: {end - start:.2f} sec")
+                print(f"throughput: {cnt / (end - start):.2f} images/sec")
 
 if __name__ == "__main__":
     main(sys.argv[1:])
