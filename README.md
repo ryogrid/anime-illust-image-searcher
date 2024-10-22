@@ -84,7 +84,7 @@
   - But, it doesn't mean that your script usage is wrong. Though these files is ignored or not displayed at Web UI :|
     - This is problem of current implentation. When you use scripts on Windows and charactor code of directory/file names isn't utf-8, the problem may occur
 
-## Information Related to Copylights
+## Information Related to Copyrights
 - I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
 - ["WD EVA02-Large Tagger v3" model](https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3) is used for image file tagging
 - **I thank to great works of SmilingWolf**
