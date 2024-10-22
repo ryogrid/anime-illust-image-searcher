@@ -43,15 +43,20 @@ LSI_WEIGHT: float = 0.5  # LSI weight (modifiable)
 ORIGINAL_SCORE_WEIGHT: float = 0.7
 RERANKED_SCORE_WEIGHT: float = 0.3
 
+DIFF_FILTER_THRESH = 1e-6 #0.000001
+
 # sorted_scores: sorted_scores[N] >= sorted_scores[N+1]
 def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple[int,float]]:
     scores: List[float] = [sorted_scores[i][1] for i in range(len(sorted_scores))]
     scores_ndarr: ndarray = np.array(scores)
+    diff_arr: ndarray = scores_ndarr[:-1] - scores_ndarr[1:]
+    # find the index of the first diff value element that is less than the threshold
+    diff_arr = np.where(diff_arr == 0, np.inf, diff_arr)
+    # look second point for reliability
+    t: float = np.where(diff_arr < DIFF_FILTER_THRESH)[0][1]
     max_val = scores_ndarr.max()
-    scores_ndarr = scores_ndarr / max_val
-    idxes_ndarr = np.where(scores_ndarr > SIMILARITY_THRESHOLD)
 
-    return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in idxes_ndarr[0]]
+    return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in range(t)]
 
 def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: str) -> List[Tuple[int, float]]:
     tags: List[str] = new_doc.split(" ")
