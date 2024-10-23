@@ -1,4 +1,4 @@
-import concurrent
+import concurrent.futures
 import os, time
 
 from PIL import Image
