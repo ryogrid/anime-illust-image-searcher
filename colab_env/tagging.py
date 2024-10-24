@@ -356,7 +356,7 @@ class Predictor:
         for file_path in file_list:
             try:
                 img: Image.Image = Image.open(file_path)
-                img.load()
+                # img.load()
                 imgs.append(img)
 
                 fpathes.append(file_path)
