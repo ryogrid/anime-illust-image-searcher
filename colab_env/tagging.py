@@ -291,7 +291,7 @@ class Predictor:
                 continue
 
 
-#def main(arg_str: str) -> None:
+# def main(arg_str: str) -> None:
 def main(arg_str: List[str]) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('--dir', nargs=1, required=True, help='tagging target directory path')
@@ -300,5 +300,5 @@ def main(arg_str: List[str]) -> None:
     # predictor.process_directory(arg_str)
     predictor.process_directory(args.dir[0])
 
-#main('/content/freepik')
+# #main('/content/freepik')
 main(sys.argv[1:])
