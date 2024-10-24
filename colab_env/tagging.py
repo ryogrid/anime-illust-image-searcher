@@ -247,13 +247,13 @@ class Predictor:
     ) -> List[str]:
         inputs: List[Tensor] = []
         for img in images:
-            img_tmp = self.prepare_image(img)
+            # img_tmp = self.prepare_image(img)
             # run the model's input transform to convert to tensor and rescale
-            # input: Tensor = self.transform(img_tmp).unsqueeze(0)
-            input: Tensor = self.transform(img_tmp)
+            input: Tensor = self.transform(img).unsqueeze(0)
+            # input: Tensor = self.transform(img_tmp)
             # NCHW image RGB to BGR
-            # input = input[:, [2, 1, 0]]
-            input = input[[2, 1, 0]]
+            input = input[:, [2, 1, 0]]
+            # input = input[[2, 1, 0]]
             # if inputs is None:
             #     inputs = input
             # else:
