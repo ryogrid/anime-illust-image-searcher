@@ -110,17 +110,6 @@ class Predictor:
         padded_image: Image.Image = Image.new("RGB", (max_dim, max_dim), (255, 255, 255))
         padded_image.paste(image, (pad_left, pad_top))
 
-        # if max_dim != target_size:
-        #     padded_image = padded_image.resize(
-        #         (target_size, target_size),
-        #         Image.BICUBIC,
-        #     )
-
-        # image_array: np.ndarray = np.asarray(padded_image, dtype=np.float32)
-        # image_array = image_array[:, :, ::-1]
-        #
-        # return np.expand_dims(image_array, axis=0)
-
         return padded_image
 
     def load_labels_hf(
