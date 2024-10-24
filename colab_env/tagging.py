@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol
 
 import numpy as np
+from humanfriendly.terminal import output
 from numpy import signedinteger
 from PIL import Image
 import timm
@@ -244,26 +245,32 @@ class Predictor:
             character_thresh: float,
             character_mcut_enabled: bool,
     ) -> List[str]:
-        inputs: Optional[Tensor] = None
+        inputs: List[Tensor] = []
         for img in images:
             img_tmp = self.prepare_image(img)
             # run the model's input transform to convert to tensor and rescale
+            # input: Tensor = self.transform(img_tmp).unsqueeze(0)
             input: Tensor = self.transform(img_tmp).unsqueeze(0)
             # NCHW image RGB to BGR
-            input = input[:, [2, 1, 0]]
-            if inputs is None:
-                inputs = input
-            else:
-                inputs = torch.cat((inputs, input), 0)
+            # input = input[:, [2, 1, 0]]
+            input = input[[2, 1, 0]]
+            # if inputs is None:
+            #     inputs = input
+            # else:
+            #     inputs = torch.cat((inputs, input), 0)
+            inputs.append(input)
+        batched_tensor = torch.tensor.stack(inputs, dim=0)
 
         print("Running inference...")
         with torch.inference_mode():
             # move model to GPU, if available
             if torch_device.type != "cpu":
                 model = self.tagger_model.to(torch_device)
-                inputs = inputs.to(torch_device)
+                # inputs = inputs.to(torch_device)
+                batched_tensor = batched_tensor.to(torch_device)
             # run the model
-            outputs = model.forward(inputs)
+            # outputs = model.forward(inputs)
+            outputs = model.forward(batched_tensor)
             # apply the final activation function (timm doesn't support doing this internally)
             outputs = F.sigmoid(outputs)
             # move inputs, outputs, and model back to to cpu if we were on GPU
