@@ -347,6 +347,7 @@ class Predictor:
         for file_path in file_list:
             try:
                 img: Image.Image = Image.open(file_path)
+                img.load()
                 imgs.append(img)
 
                 fpathes.append(file_path)
@@ -372,6 +373,8 @@ class Predictor:
                     last_cnt = cnt
 
             except Exception as e:
+                if img is not None:
+                    img.close()
                 error_class: type = type(e)
                 error_description: str = str(e)
                 err_msg: str = '%s: %s' % (error_class, error_description)
