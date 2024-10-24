@@ -1,5 +1,3 @@
-# https://github.com/neggles/wdv3-timm/blob/main/wdv3_timm.py
-
 import os, time
 import pandas as pd
 import argparse
@@ -43,8 +41,6 @@ kaomojis: List[str] = [
 ]
 
 TAGGER_VIT_MODEL_REPO: str = "SmilingWolf/wd-eva02-large-tagger-v3"
-# MODEL_FILE_NAME: str = "model.onnx"
-# LABEL_FILENAME: str = "selected_tags.csv"
 
 EXTENSIONS: List[str] = ['.png', '.jpg', '.jpeg', ".PNG", ".JPG", ".JPEG"]
 
@@ -56,70 +52,12 @@ torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if torch.backends.mps.is_available():
     torch_device = torch.device("mps")
 
-# @dataclass
-# class LabelData:
-#     names: list[str]
-#     rating: list[np.int64]
-#     general: list[np.int64]
-#     character: list[np.int64]
-
-# @dataclass
-# class ScriptOptions:
-#     image_file: Path = field(positional=True)
-#     model: str = field(default="vit")
-#     gen_threshold: float = field(default=0.35)
-#     char_threshold: float = field(default=0.75)
-
-# def get_tags(
-#         probs: Tensor,
-#         labels: LabelData,
-#         gen_threshold: float,
-#         char_threshold: float,
-# ):
-#     # Convert indices+probs to labels
-#     probs = list(zip(labels.names, probs.numpy()))
-#
-#     # First 4 labels are actually ratings
-#     rating_labels = dict([probs[i] for i in labels.rating])
-#
-#     # General labels, pick any where prediction confidence > threshold
-#     gen_labels = [probs[i] for i in labels.general]
-#     gen_labels = dict([x for x in gen_labels if x[1] > gen_threshold])
-#     gen_labels = dict(sorted(gen_labels.items(), key=lambda item: item[1], reverse=True))
-#
-#     # Character labels, pick any where prediction confidence > threshold
-#     char_labels = [probs[i] for i in labels.character]
-#     char_labels = dict([x for x in char_labels if x[1] > char_threshold])
-#     char_labels = dict(sorted(char_labels.items(), key=lambda item: item[1], reverse=True))
-#
-#     # Combine general and character labels, sort by confidence
-#     combined_names = [x for x in gen_labels]
-#     combined_names.extend([x for x in char_labels])
-#
-#     # Convert to a string suitable for use as a training caption
-#     caption = ", ".join(combined_names)
-#     taglist = caption.replace("_", " ").replace("(", "\(").replace(")", "\)")
-#
-#     return caption, taglist, rating_labels, char_labels, gen_labels
-
 def mcut_threshold(probs: np.ndarray) -> float:
     sorted_probs: np.ndarray = probs[probs.argsort()[::-1]]
     difs: np.ndarray = sorted_probs[:-1] - sorted_probs[1:]
     t: signedinteger[Any] = difs.argmax()
     thresh: float = (sorted_probs[t] + sorted_probs[t + 1]) / 2
     return thresh
-
-# def load_labels(dataframe: pd.DataFrame) -> Tuple[List[str], List[int], List[int], List[int]]:
-#     name_series: pd.Series = dataframe["name"]
-#     name_series = name_series.map(
-#         lambda x: x.replace("_", " ") if x not in kaomojis else x
-#     )
-#     tag_names: List[str] = name_series.tolist()
-#
-#     rating_indexes: List[int] = list(np.where(dataframe["category"] == 9)[0])
-#     general_indexes: List[int] = list(np.where(dataframe["category"] == 0)[0])
-#     character_indexes: List[int] = list(np.where(dataframe["category"] == 4)[0])
-#     return tag_names, rating_indexes, general_indexes, character_indexes
 
 def print_traceback() -> None:
     tb: traceback.StackSummary = traceback.extract_tb(sys.exc_info()[2])
@@ -219,24 +157,6 @@ class Predictor:
         print("Creating data transform...")
         self.transform = create_transform(**resolve_data_config(self.tagger_model.pretrained_cfg, model=self.tagger_model))
 
-        # self.tagger_model_path = hf_hub_download(repo_id=TAGGER_VIT_MODEL_REPO, filename=MODEL_FILE_NAME)
-        # self.tagger_model = rt.InferenceSession(self.tagger_model_path, providers=['CUDAExecutionProvider'])
-        # _, height, _, _ = self.tagger_model.get_inputs()[0].shape
-
-        # self.model_target_size = height
-
-        # csv_path: str = hf_hub_download(
-        #    TAGGER_VIT_MODEL_REPO,
-        #    LABEL_FILENAME,
-        # )
-        # tags_df: pd.DataFrame = pd.read_csv(csv_path)
-        # sep_tags: Tuple[List[str], List[int], List[int], List[int]] = load_labels(tags_df)
-
-        # self.tag_names = sep_tags[0]
-        # self.rating_indexes = sep_tags[1]
-        # self.general_indexes = sep_tags[2]
-        # self.character_indexes = sep_tags[3]
-
     def predict(
             self,
             images: List[Image.Image],
@@ -249,44 +169,35 @@ class Predictor:
         for img in images:
             img_tmp = self.prepare_image(img)
             # run the model's input transform to convert to tensor and rescale
-            input: Tensor = self.transform(img_tmp).unsqueeze(0)
-            # input: Tensor = self.transform(img_tmp)
+            # input: Tensor = self.transform(img_tmp).unsqueeze(0)
+            input: Tensor = self.transform(img_tmp)
             # NCHW image RGB to BGR
-            input = input[:, [2, 1, 0]]
-            # input = input[[2, 1, 0]]
+            # input = input[:, [2, 1, 0]]
+            input = input[[2, 1, 0]]
             # if inputs is None:
             #     inputs = input
             # else:
             #     inputs = torch.cat((inputs, input), 0)
             inputs.append(input)
-        batched_tensor = torch.tensor.stack(inputs, dim=0)
+        batched_tensor = torch.stack(inputs, dim=0)
 
         print("Running inference...")
         with torch.inference_mode():
             # move model to GPU, if available
+            model = self.tagger_model
             if torch_device.type != "cpu":
                 model = self.tagger_model.to(torch_device)
-                # inputs = inputs.to(torch_device)
                 batched_tensor = batched_tensor.to(torch_device)
             # run the model
-            # outputs = model.forward(inputs)
             outputs = model.forward(batched_tensor)
             # apply the final activation function (timm doesn't support doing this internally)
             outputs = F.sigmoid(outputs)
             # move inputs, outputs, and model back to to cpu if we were on GPU
             if torch_device.type != "cpu":
-                # inputs = inputs.to("cpu")
-                # model = model.to("cpu")
                 outputs = outputs.to("cpu")
 
         print("Processing results...")
         preds = outputs.numpy()
-        # caption, taglist, ratings, character, general = get_tags(
-        #     probs=outputs.squeeze(0),
-        #     labels=labels,
-        #     gen_threshold=opts.gen_threshold,
-        #     char_threshold=opts.char_threshold,
-        # )
 
         # print(preds)
         # exit(1)
