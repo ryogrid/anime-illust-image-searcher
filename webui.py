@@ -1,5 +1,6 @@
 import sys
 
+from gensim import corpora
 from gensim.models.lsimodel import LsiModel
 from gensim.similarities import MatrixSimilarity
 from numpy import ndarray
@@ -19,7 +20,7 @@ search_tags: str = ''
 image_files_name_tags_arr: List[str] = []
 model: Optional[LsiModel] = None
 index: Optional[MatrixSimilarity] = None
-dictionary: Optional[Any] = None
+dictionary: Optional[corpora.Dictinary] = None
 
 SIMILARITY_THRESHOLD: float = 0.1
 
@@ -56,7 +57,7 @@ def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple
     t: float = np.where(diff_arr < DIFF_FILTER_THRESH)[0][1]
     max_val = scores_ndarr.max()
 
-    return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in range(t)]
+    return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in range(int(t))]
 
 def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: str) -> List[Tuple[int, float]]:
     tags: List[str] = new_doc.split(" ")
@@ -135,9 +136,9 @@ def compute_bm25_scores(query_terms: List[str] = [], query_weights: Optional[Dic
 
     # Convert query terms to term IDs
     if query_weights is not None:
-        query_term_ids = list(query_weights.keys())
+        query_term_ids: List[int] = list(query_weights.keys())
     else:
-        query_term_ids = [dictionary.token2id.get(term, None) for term in query_terms if term in dictionary.token2id]
+        query_term_ids: List[int] = [dictionary.token2id.get(term, None) for term in query_terms if term in dictionary.token2id]
         query_term_ids = [term_id for term_id in query_term_ids if term_id is not None]
 
     # Initialize scores
@@ -169,8 +170,8 @@ def is_include_ng_word(tags: List[str]) -> bool:
             return True
     return False
 
-# return array([[doc_id, val], [doc_id, val], ...])
-def get_embedded_vector_by_doc_id(doc_id: int) -> ndarray:
+# return array([(doc_id, val), (doc_id, val), ...])
+def get_embedded_vector_by_doc_id(doc_id: int) -> List[Tuple[int, float]]:
     tags: List[str] = image_files_name_tags_arr[doc_id - 1].split(',')[1:]
     doc_bow: List[Tuple[int, int]] = dictionary.doc2bow(tags)
     doc_lsi: List[Tuple[int, float]] = model[doc_bow]
@@ -217,8 +218,8 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
         top10_sims = sims[:10]  # Top 10 documents
         top10_doc_ids: List[int] = [doc_id for doc_id, _ in top10_sims]
         top10_doc_ids_set = set(top10_doc_ids)
-        top10_doc_vectors: List[ndarray] = [get_embedded_vector_by_doc_id(doc_id + 1) for doc_id in top10_doc_ids]
-        weighted_mean_vec: List[List[int, float]] = np.average(top10_doc_vectors, axis=0, weights=[score for _, score in top10_sims])
+        top10_doc_vectors: List[List[Tuple[int, float]]] = [get_embedded_vector_by_doc_id(doc_id + 1) for doc_id in top10_doc_ids]
+        weighted_mean_vec: ndarray = np.average(top10_doc_vectors, axis=0, weights=[score for _, score in top10_sims])
         weighted_mean_vec_with_docid: List[Tuple[int, float]] = [(round(docid), val) for docid, val in weighted_mean_vec.tolist()]
 
         reranked_scores: ndarray = index[weighted_mean_vec_with_docid]
