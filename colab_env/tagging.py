@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional, Callable, Protocol
 
 import numpy as np
-from humanfriendly.terminal import output
 from numpy import signedinteger
 from PIL import Image
 import timm
@@ -158,15 +157,9 @@ class Predictor:
         for img in images:
             img_tmp = self.prepare_image(img)
             # run the model's input transform to convert to tensor and rescale
-            # input: Tensor = self.transform(img_tmp).unsqueeze(0)
             input: Tensor = self.transform(img_tmp)
             # NCHW image RGB to BGR
-            # input = input[:, [2, 1, 0]]
             input = input[[2, 1, 0]]
-            # if inputs is None:
-            #     inputs = input
-            # else:
-            #     inputs = torch.cat((inputs, input), 0)
             inputs.append(input)
         batched_tensor = torch.stack(inputs, dim=0)
 
@@ -188,8 +181,6 @@ class Predictor:
         print("Processing results...")
         preds = outputs.numpy()
 
-        # print(preds)
-        # exit(1)
         ret_strings: List[str] = []
         for idx in range(0, len(images)):
             labels: List[Tuple[str, float]] = list(zip(self.tag_names, preds[idx].astype(float)))
