@@ -355,7 +355,13 @@ class Predictor:
         cnt: int = 0
         for file_path in file_list:
             try:
-                img: Image.Image = Image.open(file_path)
+                try:
+                    img: Image.Image = Image.open(file_path)
+                except Exception as e:
+                    if img is not None:
+                        img.close()
+                    print(f"Failed to open image: {file_path}")
+                    continue
                 # img.load()
                 imgs.append(img)
 
@@ -389,7 +395,7 @@ class Predictor:
                 err_msg: str = '%s: %s' % (error_class, error_description)
                 print(err_msg)
                 print_traceback()
-                pass
+                continue
 
 
 #def main(arg_str: str) -> None:
