@@ -193,6 +193,7 @@ class Predictor:
             )
             sorted_character_strings_str: List[str] = [x[0] for x in sorted_character_strings]
             sorted_character_strings_str = [x.replace(' ', '_') for x in sorted_character_strings_str]
+            ret_string += ","
             ret_string += ",".join(sorted_character_strings_str).replace("(", "\(").replace(")", "\)")
 
         return ret_string
