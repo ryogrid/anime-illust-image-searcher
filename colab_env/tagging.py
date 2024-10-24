@@ -155,7 +155,7 @@ class Predictor:
         return file_list
 
     def prepare_image(self, image: Image.Image) -> Image.Image:
-        # target_size: int = self.model_target_size
+        #target_size: int = self.model_target_size
 
         if image.mode in ('RGBA', 'LA'):
             background: Image.Image = Image.new("RGB", image.size, (255, 255, 255))
@@ -247,9 +247,9 @@ class Predictor:
     ) -> List[str]:
         inputs: List[Tensor] = []
         for img in images:
-            # img_tmp = self.prepare_image(img)
+            img_tmp = self.prepare_image(img)
             # run the model's input transform to convert to tensor and rescale
-            input: Tensor = self.transform(img).unsqueeze(0)
+            input: Tensor = self.transform(img_tmp).unsqueeze(0)
             # input: Tensor = self.transform(img_tmp)
             # NCHW image RGB to BGR
             input = input[:, [2, 1, 0]]
