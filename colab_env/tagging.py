@@ -355,6 +355,7 @@ class Predictor:
         cnt: int = 0
         for file_path in file_list:
             try:
+                img: Optional[Image.Image] = None
                 try:
                     img: Image.Image = Image.open(file_path)
                 except Exception as e:
