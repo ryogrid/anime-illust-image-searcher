@@ -9,7 +9,7 @@
 - Search Images Matching with Query Texts on Latent Semantic Representation Vector Space
   - Vectors are generated with embedding model: Visual Transformar (ViT) Tagger x Latent Semantic Indexing (LSI)
   - Scores which is calculated with [bm25](https://en.wikipedia.org/wiki/Okapi_BM25) is used in combination
-  - Internal relanking method is also used
+  - Internal re-ranking method is also introduced
     - Assumption: Users make queries better asymptotically according to top search results and find appropriate queries eventually
     - If you wan to know detail of the method, please read webui.py :)
 - LSI is mainly used for Covering Tagging Presision
