@@ -66,29 +66,41 @@ class Replacer:
     ) -> None:
         self.load_labels_hf(repo_id=TAGGER_VIT_MODEL_REPO)
 
+        self.f = open(file_path.split('.')[0] + '_replaced.csv', 'w', encoding='utf-8')
+
         tagged_info_list: List[List[str]] = []
         cheet_sheet_fpath: str = file_path.split('.')[0] + '_tag_chet_sheet.csv'
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                row: List[str] = line.strip().split(",")
+                row[-1] = row[-1].replace("\\", "")
+                tagged_info_list.append(row)
+
+        last_elems: List[str] = [x[-1].replace("\\", "") for x in tagged_info_list]
+        last_elems = sort_and_uniq(last_elems)
+
+        # make dict for replacing
+        character_res: dict = {}
+        character_tags: List[str] = [self.tag_names[i] for i in self.character_index]
+        for elem in last_elems:
+            for tag in character_tags:
+                if elem.endswith(tag):
+                    character_res[elem] = tag
+                    break
+
+        # replace and write to file
+        for tags in tagged_info_list:
+            if tags[-1] in character_res:
+                tags[-1] = character_res[tags[-1]]
+            self.write_to_file(','.join(tags))
+
+        # write cheet sheet
+        contained_character_tags: List[str] = [ value for value in character_res.values() ]
+        contained_character_tags = sort_and_uniq(contained_character_tags)
         with open(cheet_sheet_fpath, 'w', encoding='utf-8') as cheet_sheet_f:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    row: List[str] = line.split(",")
-                    # remove file path element
-                    row = row[1:]
+            for tag in contained_character_tags:
+                cheet_sheet_f.write(tag + '\n')
 
-                    # tokens: List[str] = simple_preprocess(tags_line.strip())
-                    tokens: List[str] = row
-                    tagged_info_list.append(tokens)
-                # cheet_sheet_f.write(line)
-                # cheet_sheet_f.flush()
-
-        # if len(character_res) > 0:
-        #     sorted_character_strings: List[Tuple[str, float]] = sorted(
-        #         character_res.items(),
-        #         key=lambda x: x[1],
-        #         reverse=True,
-        #     )
-        #     sorted_character_strings_str: List[str] = [x[0] for x in sorted_character_strings]
-        #     sorted_character_strings_str = [x.replace(' ', '_') for x in sorted_character_strings_str]
 
 def main(arg_str: List[str]) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
