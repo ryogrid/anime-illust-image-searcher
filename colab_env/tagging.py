@@ -99,6 +99,8 @@ class Predictor:
             background.paste(image, mask=image.split()[-1])
             image = background
         else:
+            # copy image to avoid error at convert method call
+            image = image.copy()
             image = image.convert("RGB")
 
         image_shape: Tuple[int, int] = image.size
