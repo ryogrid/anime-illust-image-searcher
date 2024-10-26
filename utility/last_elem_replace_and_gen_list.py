@@ -85,7 +85,11 @@ class Replacer:
         for elem in last_elems:
             for tag in character_tags:
                 if elem.endswith(tag):
-                    character_res[elem] = tag
+                    if len(elem) > len(tag):
+                        character_res[elem] = elem.replace(tag, "," + tag)
+                    else:
+                        # last element is collected tag
+                        character_res[elem] = tag
                     break
 
         # replace and write to file
