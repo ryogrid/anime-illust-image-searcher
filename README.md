@@ -9,7 +9,7 @@
 - Search Images Matching with Query Texts on Latent Semantic Representation Vector Space
   - Vectors are generated with embedding model: Visual Transformar (ViT) Tagger x Latent Semantic Indexing (LSI)
   - Scores which is calculated with [bm25](https://en.wikipedia.org/wiki/Okapi_BM25) is used in combination
-  - Internal relanking method is also used
+  - Internal re-ranking method is also introduced
     - Assumption: Users make queries better asymptotically according to top search results and find appropriate queries eventually
     - If you wan to know detail of the method, please read webui.py :)
 - LSI is mainly used for Covering Tagging Presision
@@ -80,7 +80,7 @@
     - Irfan View can slideshow also. It's nice :)
   - At Windows, charactor code is sjis. At other OSes, charactor code is utf-8
 - Character code of file pathes 
-  - If file path contains charactors which can't be converted to Unicode or utf-8, scripts may ouput error message at processing the file
+  - If file path contains characters which can't be converted to Unicode or utf-8, scripts may ouput error message at processing the file
   - But, it doesn't mean that your script usage is wrong. Though these files is ignored or not displayed at Web UI :|
     - This is problem of current implentation. When you use scripts on Windows and charactor code of directory/file names isn't utf-8, the problem may occur
 
