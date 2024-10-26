@@ -5,7 +5,7 @@ import argparse
 import traceback, sys
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import numpy as np
 
@@ -93,10 +93,15 @@ class Replacer:
                     break
 
         # replace and write to file
+        deduplicate_dict: Dict = {}
         for tags in tagged_info_list:
             if tags[-1] in character_res:
                 tags[-1] = character_res[tags[-1]]
-            self.write_to_file(','.join(tags))
+            if tags[0] in deduplicate_dict:
+                continue
+            else:
+                deduplicate_dict[tags[0]] = True
+                self.write_to_file(','.join(tags))
 
         # write cheet sheet
         contained_character_tags: List[str] = [ value for value in character_res.values() ]
