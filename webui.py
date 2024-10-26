@@ -20,7 +20,7 @@ search_tags: str = ''
 image_files_name_tags_arr: List[str] = []
 model: Optional[LsiModel] = None
 index: Optional[MatrixSimilarity] = None
-dictionary: Optional[corpora.Dictinary] = None
+dictionary: Optional[corpora.Dictionary] = None
 
 SIMILARITY_THRESHOLD: float = 0.1
 
