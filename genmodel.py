@@ -36,7 +36,7 @@ def read_documents(filename: str) -> List[str]:
         documents: List[str] = [line.strip() for line in file.readlines()]
     return documents
 
-def gen_bm25_index(corpus: List[List[str]], dictionary: corpora.Dictionary) -> None:
+def gen_and_save_bm25_index(corpus: List[List[str]], dictionary: corpora.Dictionary) -> None:
     bm25_corpus = []
     doc_lengths = []
     term_doc_freq: dict[int, int] = {}
@@ -121,7 +121,7 @@ def main(arg_str: list[str]) -> None:
 
     index.save("lsi_index")
 
-    gen_bm25_index(processed_docs, dictionary)
+    gen_and_save_bm25_index(processed_docs, dictionary)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
