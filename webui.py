@@ -511,50 +511,54 @@ def load_model() -> None:
         bm25_avgdl = ss['bm25_avgdl']
         bm25_idf = ss['bm25_idf']
         bm25_D = ss['bm25_D']
-        return
+    else:
+        ss['bm25_corpus'] = pickle.load(open("bm25_corpus", "rb"))
+        ss['bm25_doc_lengths'] = pickle.load(open("bm25_doc_lengths", "rb"))
+        ss['bm25_avgdl'] = pickle.load(open("bm25_avgdl", "rb"))
+        ss['bm25_idf'] = pickle.load(open("bm25_idf", "rb"))
+        ss['bm25_D'] = pickle.load(open("bm25_D", "rb"))
 
-    # Build BM25 index
-    bm25_corpus = []
-    doc_lengths = []
-    term_doc_freq: dict[int, int] = {}
-    bm25_D = len(image_files_name_tags_arr)
-
-    for line in image_files_name_tags_arr:
-        tokens = line.strip().split(',')
-        tags = tokens[1:]  # Assuming the first token is file path
-
-        # Convert tags to term IDs
-        term_ids = [dictionary.token2id.get(tag, None) for tag in tags if tag in dictionary.token2id]
-        # Remove None values
-        term_ids = [term_id for term_id in term_ids if term_id is not None]
-
-        # Build term frequency dictionary for the document
-        term_freq: dict[int, int] = {}
-        for term_id in term_ids:
-            term_freq[term_id] = term_freq.get(term_id, 0) + 1
-
-        bm25_corpus.append(term_freq)
-        doc_lengths.append(len(term_ids))
-
-        # Update document frequency for terms
-        for term_id in term_freq.keys():
-            term_doc_freq[term_id] = term_doc_freq.get(term_id, 0) + 1
-
-    bm25_doc_lengths = np.array(doc_lengths)
-    bm25_avgdl = np.mean(bm25_doc_lengths)
-
-    # Compute IDF for each term
-    bm25_idf = {}
-    for term_id, df in term_doc_freq.items():
-        idf = np.log(1 + (bm25_D - df + 0.5) / (df + 0.5))
-        bm25_idf[term_id] = idf
-
-    ss['bm25_corpus'] = bm25_corpus
-    ss['bm25_doc_lengths'] = bm25_doc_lengths
-    ss['bm25_avgdl'] = bm25_avgdl
-    ss['bm25_idf'] = bm25_idf
-    ss['bm25_D'] = bm25_D
-
+    # # Build BM25 index
+    # bm25_corpus = []
+    # doc_lengths = []
+    # term_doc_freq: dict[int, int] = {}
+    # bm25_D = len(image_files_name_tags_arr)
+    #
+    # for line in image_files_name_tags_arr:
+    #     tokens = line.strip().split(',')
+    #     tags = tokens[1:]  # Assuming the first token is file path
+    #
+    #     # Convert tags to term IDs
+    #     term_ids = [dictionary.token2id.get(tag, None) for tag in tags if tag in dictionary.token2id]
+    #     # Remove None values
+    #     term_ids = [term_id for term_id in term_ids if term_id is not None]
+    #
+    #     # Build term frequency dictionary for the document
+    #     term_freq: dict[int, int] = {}
+    #     for term_id in term_ids:
+    #         term_freq[term_id] = term_freq.get(term_id, 0) + 1
+    #
+    #     bm25_corpus.append(term_freq)
+    #     doc_lengths.append(len(term_ids))
+    #
+    #     # Update document frequency for terms
+    #     for term_id in term_freq.keys():
+    #         term_doc_freq[term_id] = term_doc_freq.get(term_id, 0) + 1
+    #
+    # bm25_doc_lengths = np.array(doc_lengths)
+    # bm25_avgdl = np.mean(bm25_doc_lengths)
+    #
+    # # Compute IDF for each term
+    # bm25_idf = {}
+    # for term_id, df in term_doc_freq.items():
+    #     idf = np.log(1 + (bm25_D - df + 0.5) / (df + 0.5))
+    #     bm25_idf[term_id] = idf
+    #
+    # ss['bm25_corpus'] = bm25_corpus
+    # ss['bm25_doc_lengths'] = bm25_doc_lengths
+    # ss['bm25_avgdl'] = bm25_avgdl
+    # ss['bm25_idf'] = bm25_idf
+    # ss['bm25_D'] = bm25_D
 
 def main() -> None:
     global search_tags

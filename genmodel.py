@@ -7,6 +7,7 @@ from gensim.similarities import MatrixSimilarity
 import pickle
 from typing import List, Tuple
 import logging
+import numpy as np
 
 # generate corpus for gensim and index text file for search tool
 def read_documents_and_gen_idx_text(file_path: str) -> List[List[str]]:
@@ -34,6 +35,56 @@ def read_documents(filename: str) -> List[str]:
     with open(filename, 'r', encoding='utf-8') as file:
         documents: List[str] = [line.strip() for line in file.readlines()]
     return documents
+
+def gen_bm25_index(corpus: List[List[str]], dictionary: corpora.Dictionary) -> None:
+    bm25_corpus = []
+    doc_lengths = []
+    term_doc_freq: dict[int, int] = {}
+    bm25_D = len(corpus)
+
+    for tags in corpus:
+        # Convert tags to term IDs
+        term_ids = [dictionary.token2id.get(tag, None) for tag in tags if tag in dictionary.token2id]
+        # Remove None values
+        term_ids = [term_id for term_id in term_ids if term_id is not None]
+
+        # Build term frequency dictionary for the document
+        term_freq: dict[int, int] = {}
+        for term_id in term_ids:
+            term_freq[term_id] = term_freq.get(term_id, 0) + 1
+
+        bm25_corpus.append(term_freq)
+        doc_lengths.append(len(term_ids))
+
+        # Update document frequency for terms
+        for term_id in term_freq.keys():
+            term_doc_freq[term_id] = term_doc_freq.get(term_id, 0) + 1
+
+    bm25_doc_lengths = np.array(doc_lengths)
+    bm25_avgdl = np.mean(bm25_doc_lengths)
+
+    # Compute IDF for each term
+    bm25_idf = {}
+    for term_id, df in term_doc_freq.items():
+        idf = np.log(1 + (bm25_D - df + 0.5) / (df + 0.5))
+        bm25_idf[term_id] = idf
+
+    with open('bm25_corpus', 'wb') as f:
+        pickle.dump(bm25_corpus, f)
+
+    with open('bm25_idf', 'wb') as f:
+        pickle.dump(bm25_idf, f)
+
+    with open('bm25_avgdl', 'wb') as f:
+        pickle.dump(bm25_avgdl, f)
+
+    with open('bm25_D', 'wb') as f:
+        pickle.dump(bm25_D, f)
+
+    with open('bm25_doc_lengths', 'wb') as f:
+        pickle.dump(bm25_doc_lengths, f)
+
+
 
 def main(arg_str: list[str]) -> None:
     format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -69,6 +120,8 @@ def main(arg_str: list[str]) -> None:
     index: MatrixSimilarity = MatrixSimilarity(lsi_model[corpus])
 
     index.save("lsi_index")
+
+    gen_bm25_index(processed_docs, dictionary)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
