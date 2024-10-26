@@ -105,6 +105,14 @@ class Replacer:
 
         # write cheet sheet
         contained_character_tags: List[str] = [ value for value in character_res.values() ]
+        tmp_list: List[str] = []
+        for idx in range(len(contained_character_tags)):
+            splited = contained_character_tags[idx].split(',')
+            if len(splited) > 1:
+                tmp_list.append(splited[1])
+            else:
+                tmp_list.append(contained_character_tags[idx])
+        contained_character_tags = tmp_list
         contained_character_tags = sort_and_uniq(contained_character_tags)
         with open(cheet_sheet_fpath, 'w', encoding='utf-8') as cheet_sheet_f:
             for tag in contained_character_tags:
