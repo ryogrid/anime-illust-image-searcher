@@ -1,4 +1,4 @@
-# Anime Style Illustration Specific Image Search App with ViT Tagger x LSI
+# Anime Style Illustration Specific Image Search App with ViT Tagger x BM25/LSI
 ## What's This?
 - Anime Style Illustration Specific Image Search App with ML Technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
@@ -6,9 +6,9 @@
 - So, I wrote simple scripts
 
 ## Method
-- Search Images Matching with Query Texts on Latent Semantic Representation Vector Space
-  - Vectors are generated with embedding model: Visual Transformar (ViT) Tagger x Latent Semantic Indexing (LSI)
-  - Scores which is calculated with [bm25](https://en.wikipedia.org/wiki/Okapi_BM25) is used in combination
+- Search Images Matching with Query Texts on Latent Semantic Representation Vector Space and with BM25
+  - Vectors are generated with embedding model: Tagger Using Visual Transformar (ViT) Internally x Latent Semantic Indexing (LSI)
+  - Scores which is calculated with [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) is used in combination
   - Internal re-ranking method is also introduced
     - Assumption: Users make queries better asymptotically according to top search results and find appropriate queries eventually
     - If you wan to know detail of the method, please read webui.py :)
