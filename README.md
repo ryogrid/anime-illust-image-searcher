@@ -46,6 +46,7 @@
     - Take several secs only for 1000 files and reduction from 800 to 700 dimension case (case of demo on later section)
     - But, in 340k files and from 7500 to 6000 dimension case, about 3.5 hour are taken
       - files are not for demo :)
+    - Index for BM25 is also generated in this script 
 - $ streamlit run webui.py
   - Search app is opend on your web browser
 
