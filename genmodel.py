@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+import gensim.models.lsimodel
 from gensim import corpora
 from gensim.models import LsiModel
 from gensim.similarities import MatrixSimilarity
@@ -112,12 +113,35 @@ def main(arg_str: list[str]) -> None:
     # gen LSI model with specified number of topics (dimensions)
     # ATTENTION: num_topics should be set to appropriate value!!!
     # lsi_model: LsiModel = LsiModel(corpus, id2word=dictionary, num_topics=800)
-    lsi_model: LsiModel = LsiModel(corpus, id2word=dictionary, num_topics=args.dim[0])
+    # lsi_model: LsiModel = LsiModel(corpus, id2word=dictionary, num_topics=args.dim[0])
 
-    lsi_model.save("lsi_model")
+    svd_result: Tuple[np.ndarray, np.ndarray] = gensim.models.lsimodel.stochastic_svd(corpus, rank=args.dim[0], num_terms=len(dictionary))
+    # 2D matrix
+    lsi_model: np.ndarray = svd_result[0]
+
+
+    lsi_model = lsi_model.T
+    with open('lsi_model', 'wb') as f:
+        pickle.dump(lsi_model, f)
+
+    print(lsi_model.shape)
+
+    # fix broken corpus
+    bow_vectors: List[List[float]] = []
+    for doc in processed_docs:
+        value_vec: List[float] = []
+        for term_id, term_freq in dictionary.doc2bow(doc):
+            value_vec.append(term_freq)
+        bow_vectors.append(value_vec)
+    bow_matrix = np.array(bow_vectors, dtype=np.float32)
+
+    print(bow_matrix.shape)
+
+    tmp_matrix = lsi_model * bow_matrix
+    store_matrix: List[List[Tuple[int, float]]] = [[(i, value) for i, value in enumerate(row)] for row in tmp_matrix]
 
     # make similarity index
-    index: MatrixSimilarity = MatrixSimilarity(lsi_model[corpus])
+    index: MatrixSimilarity = MatrixSimilarity(store_matrix)
 
     index.save("lsi_index")
 
