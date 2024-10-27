@@ -4,7 +4,7 @@ import sys
 import gensim.models.lsimodel
 from gensim import corpora
 from gensim.models import LsiModel
-from gensim.similarities import MatrixSimilarity
+from gensim.similarities import Similarity, MatrixSimilarity
 import pickle
 from typing import List, Tuple
 import logging
@@ -105,6 +105,7 @@ def main(arg_str: list[str]) -> None:
     # remove frequent tags
     #dictionary.filter_n_most_frequent(500)
 
+    """"
     with open('lsi_dictionary', 'wb') as f:
         pickle.dump(dictionary, f)
 
@@ -123,25 +124,27 @@ def main(arg_str: list[str]) -> None:
     lsi_model = lsi_model.T
     with open('lsi_model', 'wb') as f:
         pickle.dump(lsi_model, f)
+    """
+
+    with open('lsi_model', 'rb') as f:
+        lsi_model = pickle.load(f)
 
     print(lsi_model.shape)
 
-    # fix broken corpus
-    bow_vectors: List[List[float]] = []
-    for doc in processed_docs:
-        value_vec: List[float] = []
-        for term_id, term_freq in dictionary.doc2bow(doc):
-            value_vec.append(term_freq)
-        bow_vectors.append(value_vec)
-    bow_matrix = np.array(bow_vectors, dtype=np.float32)
-
-    print(bow_matrix.shape)
-
-    tmp_matrix = lsi_model * bow_matrix
-    store_matrix: List[List[Tuple[int, float]]] = [[(i, value) for i, value in enumerate(row)] for row in tmp_matrix]
-
     # make similarity index
-    index: MatrixSimilarity = MatrixSimilarity(store_matrix)
+    index: MatrixSimilarity = None
+
+    for doc in processed_docs:
+        value_vec: np.ndarray = np.zeros((len(dictionary),1))
+        bow: List[Tuple[int, float]] = dictionary.doc2bow(doc)
+        for term_id, term_freq in bow:
+            value_vec[term_id][0] = term_freq
+        embedding = lsi_model * value_vec
+        print(embedding.shape())
+        if index is None:
+            index = MatrixSimilarity([embedding], num_features=args.dim[0])
+        else:
+            index.add_documents([embedding])
 
     index.save("lsi_index")
 
