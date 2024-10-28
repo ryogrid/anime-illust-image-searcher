@@ -13,7 +13,7 @@ import numpy as np
 # generate corpus for gensim and index text file for search tool
 def read_documents_and_gen_idx_text(file_path: str) -> List[List[str]]:
     corpus_base: List[List[str]] = []
-    idx_text_fpath: str = file_path.split('.')[0] + '_lsi_idx.csv'
+    idx_text_fpath: str = file_path.split('.')[0] + '_doc2vec_idx.csv'
     with open(idx_text_fpath, 'w', encoding='utf-8') as idx_f:
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
@@ -105,7 +105,7 @@ def main(arg_str: list[str]) -> None:
     # remove frequent tags
     #dictionary.filter_n_most_frequent(500)
 
-    with open('lsi_dictionary', 'wb') as f:
+    with open('doc2vec_dictionary', 'wb') as f:
         pickle.dump(dictionary, f)
 
     corpus: List[List[Tuple[int, int]]] = [dictionary.doc2bow(doc) for doc in processed_docs]
@@ -126,9 +126,10 @@ def main(arg_str: list[str]) -> None:
 
     print(lsi_model.shape)
 
+    """
     # make similarity index
     index: Similarity = None
-
+    
     for doc in processed_docs:
         value_vec: np.ndarray = np.zeros((len(dictionary)))
         bow: List[Tuple[int, float]] = dictionary.doc2bow(doc)
@@ -140,8 +141,9 @@ def main(arg_str: list[str]) -> None:
             index = Similarity("lsi_index", [embedding_vec], num_features=args.dim[0])
         else:
             index.add_documents([embedding_vec])
+    """
 
-    index.save("lsi_index")
+    index.save("doc2vec_index")
 
     gen_and_save_bm25_index(processed_docs, dictionary)
 
