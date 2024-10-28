@@ -17,7 +17,7 @@ def read_documents_and_gen_idx_text(file_path: str) -> List[List[str]]:
     with open(idx_text_fpath, 'w', encoding='utf-8') as idx_f:
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
-                row: List[str] = line.split(",")
+                row: List[str] = line.strip().split(",")
                 # remove file path element
                 row = row[1:]
 
