@@ -105,7 +105,6 @@ def main(arg_str: list[str]) -> None:
     # remove frequent tags
     #dictionary.filter_n_most_frequent(500)
 
-    """"
     with open('lsi_dictionary', 'wb') as f:
         pickle.dump(dictionary, f)
 
@@ -124,10 +123,6 @@ def main(arg_str: list[str]) -> None:
     lsi_model = lsi_model.T
     with open('lsi_model', 'wb') as f:
         pickle.dump(lsi_model, f)
-    """
-
-    with open('lsi_model', 'rb') as f:
-        lsi_model = pickle.load(f)
 
     print(lsi_model.shape)
 
