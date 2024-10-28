@@ -132,19 +132,19 @@ def main(arg_str: list[str]) -> None:
     print(lsi_model.shape)
 
     # make similarity index
-    index: MatrixSimilarity = None
+    index: Similarity = None
 
     for doc in processed_docs:
-        value_vec: np.ndarray = np.zeros((len(dictionary),1))
+        value_vec: np.ndarray = np.zeros((len(dictionary)))
         bow: List[Tuple[int, float]] = dictionary.doc2bow(doc)
         for term_id, term_freq in bow:
-            value_vec[term_id][0] = term_freq
-        embedding = lsi_model * value_vec
-        print(embedding.shape())
+            value_vec[term_id] = term_freq
+        embedding = lsi_model @ value_vec
+        embedding_vec = np.array(embedding)
         if index is None:
-            index = MatrixSimilarity([embedding], num_features=args.dim[0])
+            index = Similarity("lsi_index", [embedding_vec], num_features=args.dim[0])
         else:
-            index.add_documents([embedding])
+            index.add_documents([embedding_vec])
 
     index.save("lsi_index")
 

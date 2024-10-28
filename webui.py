@@ -59,6 +59,14 @@ def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple
 
     return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in range(int(t))]
 
+def get_embedding(bow: List[Tuple[int, float]]) -> List[Tuple[int, float]]:
+    value_vec: np.ndarray = np.zeros((len(dictionary)))
+    #bow: List[Tuple[int, float]] = dictionary.doc2bow(doc)
+    for term_id, term_freq in bow:
+        value_vec[term_id] = term_freq
+    embedding = model @ value_vec
+    return [(idx, val) for idx, val in enumerate(embedding)]
+
 def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: str) -> List[Tuple[int, float]]:
     tags: List[str] = new_doc.split(" ")
 
@@ -94,7 +102,7 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
 
                 break
 
-    query_lsi: List[Tuple[int, float]] = model[query_bow_local]
+    query_lsi: List[Tuple[int, float]] = get_embedding(query_bow_local)
 
     # reset
     query_bow_local = []
@@ -112,7 +120,7 @@ def normalize_and_apply_weight_lsi(query_bow: List[Tuple[int, int]], new_doc: st
 
                     break
 
-        query_lsi_neg: List[Tuple[int, float]] = model[query_bow_local]
+        query_lsi_neg: List[Tuple[int, float]] = get_embedding(query_bow_local)
 
         # query_lsi - query_lsi_neg
         query_lsi_tmp: List[Tuple[int, float]] = []
@@ -174,7 +182,7 @@ def is_include_ng_word(tags: List[str]) -> bool:
 def get_embedded_vector_by_doc_id(doc_id: int) -> List[Tuple[int, float]]:
     tags: List[str] = image_files_name_tags_arr[doc_id - 1].split(',')[1:]
     doc_bow: List[Tuple[int, int]] = dictionary.doc2bow(tags)
-    doc_lsi: List[Tuple[int, float]] = model[doc_bow]
+    doc_lsi = get_embedding(doc_bow) #model[doc_bow]
     return doc_lsi
 
 def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
@@ -501,7 +509,10 @@ def load_model() -> None:
         for line in f:
             image_files_name_tags_arr.append(line.strip())
 
-    model = LsiModel.load("lsi_model")
+    #model = LsiModel.load("lsi_model")
+    with open("lsi_model", "rb") as f:
+        model = pickle.load(f)
+
     index = MatrixSimilarity.load("lsi_index")
     dictionary = pickle.load(open("lsi_dictionary", "rb"))
 
@@ -517,48 +528,11 @@ def load_model() -> None:
         ss['bm25_avgdl'] = pickle.load(open("bm25_avgdl", "rb"))
         ss['bm25_idf'] = pickle.load(open("bm25_idf", "rb"))
         ss['bm25_D'] = pickle.load(open("bm25_D", "rb"))
-
-    # # Build BM25 index
-    # bm25_corpus = []
-    # doc_lengths = []
-    # term_doc_freq: dict[int, int] = {}
-    # bm25_D = len(image_files_name_tags_arr)
-    #
-    # for line in image_files_name_tags_arr:
-    #     tokens = line.strip().split(',')
-    #     tags = tokens[1:]  # Assuming the first token is file path
-    #
-    #     # Convert tags to term IDs
-    #     term_ids = [dictionary.token2id.get(tag, None) for tag in tags if tag in dictionary.token2id]
-    #     # Remove None values
-    #     term_ids = [term_id for term_id in term_ids if term_id is not None]
-    #
-    #     # Build term frequency dictionary for the document
-    #     term_freq: dict[int, int] = {}
-    #     for term_id in term_ids:
-    #         term_freq[term_id] = term_freq.get(term_id, 0) + 1
-    #
-    #     bm25_corpus.append(term_freq)
-    #     doc_lengths.append(len(term_ids))
-    #
-    #     # Update document frequency for terms
-    #     for term_id in term_freq.keys():
-    #         term_doc_freq[term_id] = term_doc_freq.get(term_id, 0) + 1
-    #
-    # bm25_doc_lengths = np.array(doc_lengths)
-    # bm25_avgdl = np.mean(bm25_doc_lengths)
-    #
-    # # Compute IDF for each term
-    # bm25_idf = {}
-    # for term_id, df in term_doc_freq.items():
-    #     idf = np.log(1 + (bm25_D - df + 0.5) / (df + 0.5))
-    #     bm25_idf[term_id] = idf
-    #
-    # ss['bm25_corpus'] = bm25_corpus
-    # ss['bm25_doc_lengths'] = bm25_doc_lengths
-    # ss['bm25_avgdl'] = bm25_avgdl
-    # ss['bm25_idf'] = bm25_idf
-    # ss['bm25_D'] = bm25_D
+        bm25_corpus = ss['bm25_corpus']
+        bm25_doc_lengths = ss['bm25_doc_lengths']
+        bm25_avgdl = ss['bm25_avgdl']
+        bm25_idf = ss['bm25_idf']
+        bm25_D = ss['bm25_D']
 
 def main() -> None:
     global search_tags
