@@ -2,21 +2,26 @@ import argparse
 import sys
 
 from gensim import corpora
-from gensim.models import LsiModel
-from gensim.similarities import MatrixSimilarity
+from gensim.models import Doc2Vec
+from gensim.models.doc2vec import TaggedDocument
+from gensim.similarities import Similarity
 import pickle
 from typing import List, Tuple
 import logging
 import numpy as np
 
+TRAIN_EPOCHS = 100
+
 # generate corpus for gensim and index text file for search tool
-def read_documents_and_gen_idx_text(file_path: str) -> List[List[str]]:
-    corpus_base: List[List[str]] = []
-    idx_text_fpath: str = file_path.split('.')[0] + '_lsi_idx.csv'
+def read_documents_and_gen_idx_text(file_path: str) -> Tuple[List[str],List[TaggedDocument]]:
+    processed_docs: List[List[str]] = []
+    tagged_docs: List[TaggedDocument] = []
+    idx_text_fpath: str = file_path.split('.')[0] + '_doc2vec_idx.csv'
     with open(idx_text_fpath, 'w', encoding='utf-8') as idx_f:
         with open(file_path, 'r', encoding='utf-8') as f:
+            doc_id: int = 0
             for line in f:
-                row: List[str] = line.split(",")
+                row: List[str] = line.strip().split(",")
                 # remove file path element
                 row = row[1:]
 
@@ -24,11 +29,13 @@ def read_documents_and_gen_idx_text(file_path: str) -> List[List[str]]:
                 tokens: List[str] = row
                 # ignore simple_preprocess failure case and short tags image
                 if tokens and len(tokens) >= 3:
-                    corpus_base.append(tokens)
+                    tagged_docs.append(TaggedDocument(tokens, [doc_id]))
+                    processed_docs.append(tokens)
                     idx_f.write(line)
                     idx_f.flush()
+                    doc_id += 1
 
-    return corpus_base
+    return processed_docs, tagged_docs
 
 # read image files pathes from file
 def read_documents(filename: str) -> List[str]:
@@ -84,8 +91,6 @@ def gen_and_save_bm25_index(corpus: List[List[str]], dictionary: corpora.Diction
     with open('bm25_doc_lengths', 'wb') as f:
         pickle.dump(bm25_doc_lengths, f)
 
-
-
 def main(arg_str: list[str]) -> None:
     format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(
@@ -97,29 +102,36 @@ def main(arg_str: list[str]) -> None:
     parser.add_argument('--dim', nargs=1, type=int, required=True, help='number of dimensions at LSI model')
     args: argparse.Namespace = parser.parse_args(arg_str)
 
-    processed_docs: List[List[str]] = read_documents_and_gen_idx_text('tags-wd-tagger.txt')
+    tmp_tuple : [List[List[str]], List[TaggedDocument]] = read_documents_and_gen_idx_text('tags-wd-tagger.txt')
+    processed_docs: List[List[str]] = tmp_tuple[0]
+    tagged_docs: List[TaggedDocument] = tmp_tuple[1]
 
     # image file => doc_id
     dictionary: corpora.Dictionary = corpora.Dictionary(processed_docs)
     # remove frequent tags
     #dictionary.filter_n_most_frequent(500)
 
-    with open('lsi_dictionary', 'wb') as f:
+    with open('doc2vec_dictionary', 'wb') as f:
         pickle.dump(dictionary, f)
 
-    corpus: List[List[Tuple[int, int]]] = [dictionary.doc2bow(doc) for doc in processed_docs]
+    # gen Doc2Vec model with specified number of dimensions
+    doc2vec_model: Doc2Vec = Doc2Vec(vector_size=args.dim[0], window=50, min_count=1, workers=8, dm=0)
+    doc2vec_model.build_vocab(tagged_docs)
+    doc2vec_model.train(tagged_docs, total_examples=doc2vec_model.corpus_count, epochs=TRAIN_EPOCHS)
+    doc2vec_model.save("doc2vec_model")
 
-    # gen LSI model with specified number of topics (dimensions)
-    # ATTENTION: num_topics should be set to appropriate value!!!
-    # lsi_model: LsiModel = LsiModel(corpus, id2word=dictionary, num_topics=800)
-    lsi_model: LsiModel = LsiModel(corpus, id2word=dictionary, num_topics=args.dim[0])
+    # similarity index
+    index: Similarity = None
 
-    lsi_model.save("lsi_model")
+    # store each image infos to index
+    for doc in processed_docs:
+        embed_vec = doc2vec_model.infer_vector(doc)
+        if index is None:
+            index = Similarity("doc2vec_index", [embed_vec], num_features=args.dim[0])
+        else:
+            index.add_documents([embed_vec])
 
-    # make similarity index
-    index: MatrixSimilarity = MatrixSimilarity(lsi_model[corpus])
-
-    index.save("lsi_index")
+    index.save("doc2vec_index")
 
     gen_and_save_bm25_index(processed_docs, dictionary)
 
