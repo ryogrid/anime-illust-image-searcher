@@ -78,7 +78,7 @@ def normalize_and_apply_weight_doc2vec(new_doc: str) -> List[Tuple[int, float]]:
             tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), 1))
             all_weight += 1
 
-    got_vector: ndarray = np.zeros(args.dim[0])
+    got_vector: ndarray = np.zeros(len(model.dv[0]))
     for tag, weight in tag_and_weight_list:
         got_vector += weight * model.infer_vector([tag])
     got_vector = got_vector / all_weight
