@@ -12,7 +12,7 @@
   - Internal re-ranking method is also introduced
     - Assumption: Users make queries better asymptotically according to top search results and find appropriate queries eventually
     - If you wan to know detail of the method, please read webui.py :)
-- Doc2Vec is mainly used for Covering Tagging Presision
+- Doc2Vec is Mainly Used for Covering Tagging Presision
   - Simple search logic can be implemented with BM25 only
   - But, you can use tags to search which are difficult for tagging because the index data which is composed of vectors generated with Doc2Vec model
     - implemented with Gensim lib
