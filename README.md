@@ -1,4 +1,4 @@
-# Anime Style Illustration Specific Image Search App with ViT Tagger x BM25/LSI
+# Anime Style Illustration Specific Image Search App with ViT Tagger x BM25/Doc2Vec
 ## What's This?
 - Anime Style Illustration Specific Image Search App with ML Technique
   - can be used for photos. but flexible photo search is offered by Google Photos or etc :)
@@ -7,14 +7,14 @@
 
 ## Method
 - Search Images Matching with Query Texts on Latent Semantic Representation Vector Space and with BM25
-  - Vectors are generated with embedding model: Tagger Using Visual Transformar (ViT) Internally x Latent Semantic Indexing (LSI)
+  - Vectors are generated with embedding model: Tagger Using Visual Transformar (ViT) Internally x Doc2Vec
   - Scores which is calculated with [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) is used in combination
   - Internal re-ranking method is also introduced
     - Assumption: Users make queries better asymptotically according to top search results and find appropriate queries eventually
     - If you wan to know detail of the method, please read webui.py :)
-- LSI is mainly used for Covering Tagging Presision
+- Doc2Vec is mainly used for Covering Tagging Presision
   - Simple search logic can be implemented with BM25 only
-  - But, you can use tags to search which are difficult for tagging because the index data which is composed of vectors is applyed LSI
+  - But, you can use tags to search which are difficult for tagging because the index data which is composed of vectors generated with Doc2Vec model
     - implemented with Gensim lib
 - ( Web UI is implemented with StreamLit )
 
@@ -33,20 +33,8 @@
       - Plese see [here](https://onnxruntime.ai/docs/execution-providers/)
       - Performance key is processing speed of ONNX Runtime at your machine :)
   - Image files and tags of these are saved to tags-wd-tagger.txt
-- $ python counttag.py
-  - => for deciding appropriate dimension scale fitting your data
-  - unique tag count is shown
-- $ python genmodel.py --dim MODEL_DIMENSION
-  - MODEL_DIMENSION is integer which specify dimension of latent sementic representation
-    - Dimension after applying LSI
-  - I think that 80% of unique tags which is counted with counttag.py is better
-    - EX: unique tags count is 1000 -> 0.8 * 1000 -> 800 (dimension)
+- $ python genmodel.py
   - This takes quite a while...
-    - LSI processing: dimension reduction with [Singular Value Decomposition (SVD)](https://en.wikipedia.org/wiki/Singular_value_decomposition)
-    - Take several secs only for 1000 files and reduction from 800 to 700 dimension case (case of demo on later section)
-    - But, in 340k files and from 7500 to 6000 dimension case, about 3.5 hour are taken
-      - files are not for demo :)
-    - Index for BM25 is also generated in this script 
 - $ streamlit run webui.py
   - Search app is opend on your web browser
 
@@ -55,9 +43,7 @@
 - First, unzip package and launch command prompt or PowerShell :)
 - $ cd anime-illust-image-searcher-pkg
 - $ .\cmd_run\cmd_run.exe tagging --dir "IMAGE FILES CONTAINED DIR PATH"
-- $ .\cmd_run\cmd_run.exe counttag
-  - Confirm unique tag num
-- $ .\cmd_run\cmd_run.exe genmodel --dim MODEL_DIMENSION
+- $ .\cmd_run\cmd_run.exe genmodel
   - Same with above :)
 - $ .\run_webui.exe
   - Search app is opend on your web browser!
@@ -96,7 +82,7 @@
     - If CLIP models which are fine tuned with anime style illust images are available, this method is better than current one
 - [x] Weight specifying to tags like prompt format of Stable Diffusion Web UI
   - Current implemenataion uses all tags faialy. But there is many cases that users want to emphasize specific tags and can't get appropriate results without that!
-- [ ] Fix a bug: some type of tags on tags-wd-tagger.txt can't be used on query 
+- [x] Fix a bug: some type of tags on tags-wd-tagger.txt can't be used on query 
 - [ ] Incremental index updating at image files increasing
 - [ ] Similar image search with specifying a image file 
 - [x] Exporting found files list feature
