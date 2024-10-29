@@ -1,4 +1,3 @@
-import argparse
 import sys
 
 from gensim import corpora
@@ -13,7 +12,7 @@ import numpy as np
 TRAIN_EPOCHS = 100
 
 # generate corpus for gensim and index text file for search tool
-def read_documents_and_gen_idx_text(file_path: str) -> Tuple[List[str],List[TaggedDocument]]:
+def read_documents_and_gen_idx_text(file_path: str) -> Tuple[List[List[str]],List[TaggedDocument]]:
     processed_docs: List[List[str]] = []
     tagged_docs: List[TaggedDocument] = []
     idx_text_fpath: str = file_path.split('.')[0] + '_doc2vec_idx.csv'
@@ -98,9 +97,9 @@ def main(arg_str: list[str]) -> None:
         level=logging.DEBUG
     )
 
-    parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    parser.add_argument('--dim', nargs=1, type=int, required=True, help='number of dimensions at LSI model')
-    args: argparse.Namespace = parser.parse_args(arg_str)
+    # parser: argparse.ArgumentParser = argparse.ArgumentParser()
+    # parser.add_argument('--dim', nargs=1, type=int, required=True, help='number of dimensions at LSI model')
+    # args: argparse.Namespace = parser.parse_args(arg_str)
 
     tmp_tuple : [List[List[str]], List[TaggedDocument]] = read_documents_and_gen_idx_text('tags-wd-tagger.txt')
     processed_docs: List[List[str]] = tmp_tuple[0]
@@ -115,7 +114,7 @@ def main(arg_str: list[str]) -> None:
         pickle.dump(dictionary, f)
 
     # gen Doc2Vec model with specified number of dimensions
-    doc2vec_model: Doc2Vec = Doc2Vec(vector_size=args.dim[0], window=50, min_count=1, workers=8, dm=0)
+    doc2vec_model: Doc2Vec = Doc2Vec(vector_size=300, window=50, min_count=1, workers=1, dm=0)
     doc2vec_model.build_vocab(tagged_docs)
     doc2vec_model.train(tagged_docs, total_examples=doc2vec_model.corpus_count, epochs=TRAIN_EPOCHS)
     doc2vec_model.save("doc2vec_model")
@@ -127,7 +126,7 @@ def main(arg_str: list[str]) -> None:
     for doc in processed_docs:
         embed_vec = doc2vec_model.infer_vector(doc)
         if index is None:
-            index = Similarity("doc2vec_index", [embed_vec], num_features=args.dim[0])
+            index = Similarity("doc2vec_index", [embed_vec], num_features=300)
         else:
             index.add_documents([embed_vec])
 
