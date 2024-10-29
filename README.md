@@ -29,9 +29,10 @@
   - This takes quite a while...
     - About 1.7 sec/file at middle spec desktop PC (GPU is not used)
       - AMD Ryzen 7 5700X 8-Core Processor 4.50 GHz
-    - You may speed up with editing the script to use CUDAExecutionProvider, CoreMLExecutionProvider and etc :)
-      - Plese see [here](https://onnxruntime.ai/docs/execution-providers/)
-      - Performance key is processing speed of ONNX Runtime at your machine :)
+    - You may speed up with setup libraries and drivers for using GPU :)
+      - Plese see [here](https://pytorch.org/get-started/previous-versions/#v241)
+        - Current pytorch version of this repo is v2.4.1
+      - You should install pytorch-cuda PyPi package matching wich CUDA library on your machine additionaly. And cuDNN library matching wich the CUDA library should be installed also :) 
   - Image files and tags of these are saved to tags-wd-tagger.txt
 - $ python genmodel.py
   - This takes quite a while...
