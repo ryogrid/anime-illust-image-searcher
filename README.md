@@ -60,8 +60,15 @@
   - Example
     - "girl:3 dragon"
     - "girl:2 boy:3"
-    - "girl dragon:2 boy:-3"
-      - **Negative weight also can be specified!**
+    - **Exclude tag marking**
+      - **Weight specification which starts with '-' indicates that images tagged it should be excluded**
+        - **ex: "girl boy:-3"**
+          - **Images tagged 'boy' is removed from results. Weight is ignored but can't omit :)** 
+    - **Required tag marking**
+      - **Weight specification which starts with '+' indicates the tag is required**
+      - **ex: "girl:+3 dragon"**
+        - **Images not tagged 'girl' is removed from results**
+        - **Weight value is NOT ignored at calculation of scores**
 - **Search Result Exporting feature**
   - You can export file paths list which is hitted at search
   - Pressing 'Export' button saves the list as text file to path Web UI executed at
