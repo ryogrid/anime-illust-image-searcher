@@ -152,7 +152,7 @@ def compute_bm25_scores(query_terms: List[str] = [], query_weights: Optional[Dic
             for doc_idx, doc in enumerate(bm25_corpus):
                 if term_id not in doc:
                     exclude_doc_ids.append(doc_idx)
-            scores += score - REQUIRE_TAG_MAGIC_NUMBER
+            scores += (weight - REQUIRE_TAG_MAGIC_NUMBER) * score
             scores[exclude_doc_ids] = -np.inf
         else:
             scores += weight * score
