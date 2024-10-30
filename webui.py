@@ -37,7 +37,7 @@ bm25_avgdl: float = 0
 bm25_idf: Dict[int, float] = {}
 bm25_D: int = 0  # Total number of documents
 BM25_WEIGHT: float = 0.5  # BM25 weight (modifiable)
-DOC2VEC_WEIGHT: float = 0.5  # LSI weight (modifiable)
+DOC2VEC_WEIGHT: float = 0.5  # Doc2Vec weight (modifiable)
 
 # weight at reranking
 ORIGINAL_SCORE_WEIGHT: float = 0.7
@@ -80,8 +80,11 @@ def normalize_and_apply_weight_doc2vec(new_doc: str) -> List[Tuple[int, float]]:
 
     got_vector: ndarray = np.zeros(len(model.dv[0]))
     for tag, weight in tag_and_weight_list:
-        got_vector += weight * model.infer_vector([tag])
+        tmp_vec: ndarray = model.infer_vector([tag])
+        tmp_vec = tmp_vec / np.linalg.norm(tmp_vec)
+        got_vector += weight * tmp_vec
     got_vector = got_vector / all_weight
+    got_vector = got_vector / np.linalg.norm(got_vector)
 
     return [(ii, val) for ii, val in enumerate(got_vector)]
 
@@ -120,7 +123,15 @@ def compute_bm25_scores(query_terms: List[str] = [], query_weights: Optional[Dic
         else:
             weight = 1.0
 
-        scores += weight * score
+        if weight < 0:
+            # Exclude documents containing the term by setting the score to -inf
+            exclude_doc_ids: List[int] = []
+            for doc_idx, doc in enumerate(bm25_corpus):
+                if term_id in doc:
+                    exclude_doc_ids.append(doc_idx)
+            scores[exclude_doc_ids] = -np.inf
+        else:
+            scores += weight * score
 
     return scores
 
@@ -143,7 +154,7 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     # get embed vector using Doc2Vec model
     vec_doc2vec: List[Tuple[int, float]] = normalize_and_apply_weight_doc2vec(new_doc)
 
-    # Existing similarity scores using LSI
+    # Existing similarity scores using Dod2Vec model
     sims_doc2vec: ndarray = index[vec_doc2vec]
 
     splited_term = [x for x in new_doc.split(' ')]
@@ -179,6 +190,7 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
         top10_doc_ids_set = set(top10_doc_ids)
         top10_doc_vectors: List[List[Tuple[int, float]]] = [get_embedded_vector_by_doc_id(doc_id + 1) for doc_id in top10_doc_ids]
         weighted_mean_vec: ndarray = np.average(top10_doc_vectors, axis=0, weights=[score for _, score in top10_sims])
+        weighted_mean_vec = weighted_mean_vec / np.linalg.norm(weighted_mean_vec)
         weighted_mean_vec_with_docid: List[Tuple[int, float]] = [(round(docid), val) for docid, val in weighted_mean_vec.tolist()]
 
         reranked_scores: ndarray = index[weighted_mean_vec_with_docid]
