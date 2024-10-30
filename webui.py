@@ -1,8 +1,8 @@
+import math
 import sys
 
 from gensim import corpora
 from gensim.models import Doc2Vec
-from gensim.models.lsimodel import LsiModel
 from gensim.similarities import MatrixSimilarity
 from numpy import ndarray
 from streamlit.runtime.state import SessionStateProxy
@@ -62,7 +62,6 @@ def normalize_and_apply_weight_doc2vec(new_doc: str) -> List[Tuple[int, float]]:
     tags: List[str] = new_doc.split(" ")
 
     # parse tag:weight format
-    is_exist_negative_weight: bool = False
     tag_and_weight_list: List[Tuple[str, int]] = []
     all_weight: int = 0
     for tag in tags:
@@ -78,13 +77,21 @@ def normalize_and_apply_weight_doc2vec(new_doc: str) -> List[Tuple[int, float]]:
             tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), 1))
             all_weight += 1
 
+    if all_weight == 0:
+        all_weight = 1
+
     got_vector: ndarray = np.zeros(len(model.dv[0]))
     for tag, weight in tag_and_weight_list:
         tmp_vec: ndarray = model.infer_vector([tag])
         tmp_vec = tmp_vec / np.linalg.norm(tmp_vec)
         got_vector += weight * tmp_vec
     got_vector = got_vector / all_weight
-    got_vector = got_vector / np.linalg.norm(got_vector)
+    norm: float = np.linalg.norm(got_vector)
+
+    if math.isinf(norm) or norm == 0:
+        norm = 1.0
+
+    got_vector = got_vector / norm
 
     return [(ii, val) for ii, val in enumerate(got_vector)]
 
@@ -167,7 +174,6 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
             query_term_and_weight[dictionary.token2id[term_splited[0]]] = 1
 
     # BM25 scores
-    # bm25_scores = compute_bm25_scores(splited_doc)
     bm25_scores = compute_bm25_scores(query_weights=query_term_and_weight)
 
     # Normalize scores
@@ -346,7 +352,6 @@ def export_result_to_file() -> None:
     else:
         encoding = 'utf-8'
 
-    # name convention: "{search_tags}" + "_" + {timestamp} + ".txt"
     output_file_path: str = f"{search_tags.replace(' ', '_').replace(':', '_') }_{int(time.time())}.txt"
 
     with open(output_file_path, 'w', encoding=encoding) as f:
@@ -412,7 +417,10 @@ def display_selected_image() -> None:
     image_info: Dict[str, Any] = ss['selected_image_info']
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.image(image_info['file_path'], use_column_width=True)
+        try:
+            st.image(image_info['file_path'], use_column_width=True)
+        except Exception as e:
+            print(f'Error: {e}')
     with col2:
         st.write("Matching Score:")
         st.write("{:.2f}%".format(image_info['similarity'] * 100))
