@@ -66,14 +66,14 @@ def normalize_and_apply_weight_doc2vec(new_doc: str) -> List[Tuple[int, float]]:
     all_weight: int = 0
     for tag in tags:
         tag_splited: List[str] = tag.split(":")
-        if len(tag_splited) == 2:
+        if len(tag_splited) >= 2 and tag_splited[-1].isdigit():
             # replace is for specific type of tags
-            tag_elem: str = tag_splited[0].replace('\(', '(').replace('\)', ')')
-            tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), int(tag_splited[1])))
-            all_weight += int(tag_splited[1])
+            tag_elem: str = ':'.join(tag_splited[0:len(tag_splited) - 1]).replace('\(', '(').replace('\)', ')')
+            tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), int(tag_splited[-1])))
+            all_weight += int(tag_splited[-1])
         else:
             # replace is for specific type of tags
-            tag_elem: str = tag_splited[0].replace('\(', '(').replace('\)', ')')
+            tag_elem: str = ':'.join(tag_splited[0:len(tag_splited)]).replace('\(', '(').replace('\)', ')')
             tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), 1))
             all_weight += 1
 
@@ -168,10 +168,10 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     query_term_and_weight: Dict[int, float] = {}
     for term in splited_term:
         term_splited: List[str] = term.split(':')
-        if len(term_splited) == 2:
-            query_term_and_weight[dictionary.token2id[term_splited[0]]] = int(term_splited[1])
+        if len(term_splited) >= 2 and term_splited[-1].isdigit():
+            query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited) - 1])]] = int(term_splited[-1])
         else:
-            query_term_and_weight[dictionary.token2id[term_splited[0]]] = 1
+            query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited)])]] = 1
 
     # BM25 scores
     bm25_scores = compute_bm25_scores(query_weights=query_term_and_weight)
