@@ -45,18 +45,27 @@ RERANKED_SCORE_WEIGHT: float = 0.3
 
 DIFF_FILTER_THRESH = 1e-6 #0.000001
 
+REQUIRE_TAG_MAGIC_NUMBER = 1000
+
 # sorted_scores: sorted_scores[N] >= sorted_scores[N+1]
 def filter_searched_result(sorted_scores: List[Tuple[int, float]]) -> List[Tuple[int,float]]:
     scores: List[float] = [sorted_scores[i][1] for i in range(len(sorted_scores))]
     scores_ndarr: ndarray = np.array(scores)
     diff_arr: ndarray = scores_ndarr[:-1] - scores_ndarr[1:]
+
     # find the index of the first diff value element that is less than the threshold
+    # replace 0 with inf to avoid getting incorrect index
     diff_arr = np.where(diff_arr == 0, np.inf, diff_arr)
     # look second point for reliability
-    t: float = np.where(diff_arr < DIFF_FILTER_THRESH)[0][1]
+    t: float = len(sorted_scores)
+    found_points: List[float] = np.where(diff_arr < DIFF_FILTER_THRESH)[0]
+    if len(found_points) == 1:
+        t = found_points[0]
+    elif len(found_points) >= 2:
+        t = found_points[1]
     max_val = scores_ndarr.max()
 
-    return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in range(int(t))]
+    return [(sorted_scores[idx][0], sorted_scores[idx][1] / float(max_val)) for idx in range(int(t)) if sorted_scores[idx][1] > 0]
 
 def normalize_and_apply_weight_doc2vec(new_doc: str) -> List[Tuple[int, float]]:
     tags: List[str] = new_doc.split(" ")
@@ -66,7 +75,7 @@ def normalize_and_apply_weight_doc2vec(new_doc: str) -> List[Tuple[int, float]]:
     all_weight: int = 0
     for tag in tags:
         tag_splited: List[str] = tag.split(":")
-        if len(tag_splited) >= 2 and tag_splited[-1].isdigit():
+        if len(tag_splited) >= 2 and (tag_splited[-1].startswith('+') or tag_splited[-1].startswith('-') or tag_splited[-1].isdigit()):
             # replace is for specific type of tags
             tag_elem: str = ':'.join(tag_splited[0:len(tag_splited) - 1]).replace('\(', '(').replace('\)', ')')
             tag_and_weight_list.append((tag_elem.replace('(', '\(').replace(')', '\)'), int(tag_splited[-1])))
@@ -137,6 +146,14 @@ def compute_bm25_scores(query_terms: List[str] = [], query_weights: Optional[Dic
                 if term_id in doc:
                     exclude_doc_ids.append(doc_idx)
             scores[exclude_doc_ids] = -np.inf
+        elif weight > REQUIRE_TAG_MAGIC_NUMBER: # REQUIRE_TAG_MAGIC_NUMBER is a magic number to indicate that the term is required
+            # list exclude doc idxes
+            exclude_doc_ids: List[int] = []
+            for doc_idx, doc in enumerate(bm25_corpus):
+                if term_id not in doc:
+                    exclude_doc_ids.append(doc_idx)
+            scores += score - REQUIRE_TAG_MAGIC_NUMBER
+            scores[exclude_doc_ids] = -np.inf
         else:
             scores += weight * score
 
@@ -168,8 +185,12 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     query_term_and_weight: Dict[int, float] = {}
     for term in splited_term:
         term_splited: List[str] = term.split(':')
-        if len(term_splited) >= 2 and term_splited[-1].isdigit():
-            query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited) - 1])]] = int(term_splited[-1])
+        if len(term_splited) >= 2 and ((term_splited[-1].startswith('+') or term_splited[-1].startswith('-') or term_splited[-1].isdigit())):
+            if term_splited[-1].startswith('+'):
+                # + indicates that the term is required and for making the term required, the weight is set to REQUIRE_TAG_MAGIC_NUMBER + weight
+                query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited) - 1])]] = REQUIRE_TAG_MAGIC_NUMBER + int(term_splited[-1])
+            else:
+                query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited) - 1])]] = int(term_splited[-1])
         else:
             query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited)])]] = 1
 
