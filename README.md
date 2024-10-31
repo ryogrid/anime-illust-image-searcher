@@ -35,7 +35,7 @@
       - Plese see [here](https://pytorch.org/get-started/previous-versions/#v241)
         - Current pytorch version of this repo is v2.4.1
       - You should install pytorch-cuda PyPi package matching wich CUDA library on your machine additionaly. And cuDNN library matching wich the CUDA library should be installed also :) 
-  - Image files and tags of these are saved to tags-wd-tagger.txt
+  - Pathes and tags of image files are saved to tags-wd-tagger.txt
 - $ python genmodel.py
   - This takes quite a while...
 - $ streamlit run webui.py
