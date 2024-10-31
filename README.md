@@ -63,7 +63,7 @@
     - **Exclude tag marking**
       - **Weight specification which starts with '-' indicates that images tagged it should be excluded**
         - **ex: "girl boy:-3"**
-          - **Images tagged 'boy' is removed from results. Weight is ignored but can't omit :)** 
+          - **Images tagged 'boy' is removed from results. Weight is ignored but can't be omitted :)** 
     - **Required tag marking**
       - **Weight specification which starts with '+' indicates the tag is required**
       - **ex: "girl:+3 dragon"**
