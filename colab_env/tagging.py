@@ -1,6 +1,4 @@
 import os, time
-from multiprocessing.spawn import freeze_support
-import multiprocessing
 
 import pandas as pd
 import argparse
@@ -16,7 +14,6 @@ import timm
 from timm.data import create_transform, resolve_data_config
 import torch
 from torch import Tensor, nn
-from torch.fx.experimental.unification.utils import freeze
 from torch.nn import functional as F
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import HfHubHTTPError
@@ -48,14 +45,14 @@ TAGGER_VIT_MODEL_REPO: str = "SmilingWolf/wd-eva02-large-tagger-v3"
 
 EXTENSIONS: List[str] = ['.png', '.jpg', '.jpeg', ".PNG", ".JPG", ".JPEG"]
 
-BATCH_SIZE: int = 10
-PROGRESS_INTERVAL: int = 100
+BATCH_SIZE: int = 200
+PROGRESS_INTERVAL: int = 1000
 
 WORKER_NUM: int = 8
 
 torch_device = torch.device("cpu")
 
-# torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # for apple silicon
 if torch.backends.mps.is_available():
     torch_device = torch.device("mps")
@@ -100,27 +97,27 @@ class Predictor:
                     file_list.append(file_path)
         return file_list
 
-    def prepare_image(self, image: Image.Image) -> Image.Image:
-        #target_size: int = self.model_target_size
-
-        if image.mode in ('RGBA', 'LA'):
-            background: Image.Image = Image.new("RGB", image.size, (255, 255, 255))
-            background.paste(image, mask=image.split()[-1])
-            image = background
-        else:
-            # copy image to avoid error at convert method call
-            image = image.copy()
-            image = image.convert("RGB")
-
-        image_shape: Tuple[int, int] = image.size
-        max_dim: int = max(image_shape)
-        pad_left: int = (max_dim - image_shape[0]) // 2
-        pad_top: int = (max_dim - image_shape[1]) // 2
-
-        padded_image: Image.Image = Image.new("RGB", (max_dim, max_dim), (255, 255, 255))
-        padded_image.paste(image, (pad_left, pad_top))
-
-        return padded_image
+    # def prepare_image(self, image: Image.Image) -> Image.Image:
+    #     #target_size: int = self.model_target_size
+    #
+    #     if image.mode in ('RGBA', 'LA'):
+    #         background: Image.Image = Image.new("RGB", image.size, (255, 255, 255))
+    #         background.paste(image, mask=image.split()[-1])
+    #         image = background
+    #     else:
+    #         # copy image to avoid error at convert method call
+    #         image = image.copy()
+    #         image = image.convert("RGB")
+    #
+    #     image_shape: Tuple[int, int] = image.size
+    #     max_dim: int = max(image_shape)
+    #     pad_left: int = (max_dim - image_shape[0]) // 2
+    #     pad_top: int = (max_dim - image_shape[1]) // 2
+    #
+    #     padded_image: Image.Image = Image.new("RGB", (max_dim, max_dim), (255, 255, 255))
+    #     padded_image.paste(image, (pad_left, pad_top))
+    #
+    #     return padded_image
 
     def load_labels_hf(
             self,
@@ -241,27 +238,38 @@ class Predictor:
 
     def write_to_file(self, csv_line: str) -> None:
         self.f.write(csv_line + '\n')
-        self.f.flush()
 
-    def gen_image_tensor(self, file_path: str) -> Tensor:
-        img: Image.Image = None
+    # def gen_image_tensor(self, file_path: str) -> Tensor:
+    #     img: Image.Image = None
+    #     try:
+    #       img = Image.open(file_path)
+    #       img.load()
+    #       img_tmp = self.prepare_image(img)
+    #       # run the model's input transform to convert to tensor and rescale
+    #       input: Tensor = self.transform(img_tmp)
+    #       # NCHW image RGB to BGR
+    #       input = input[[2, 1, 0]]
+    #       return input
+    #     except Exception as e:
+    #       if img is not None:
+    #         img.close()
+    #       error_class: type = type(e)
+    #       error_description: str = str(e)
+    #       err_msg: str = '%s: %s' % (error_class, error_description)
+    #       print(err_msg)
+    #       return None
+
+    def load_tensor_th(self, file_path: str) -> Tensor | None:
         try:
-          img = Image.open(file_path)
-          img.load()
-          img_tmp = self.prepare_image(img)
-          # run the model's input transform to convert to tensor and rescale
-          input: Tensor = self.transform(img_tmp)
-          # NCHW image RGB to BGR
-          input = input[[2, 1, 0]]
-          return input
+            loaded_tensor = torch.load(file_path)
+            return loaded_tensor
         except Exception as e:
-          if img is not None:
-            img.close()
-          error_class: type = type(e)
-          error_description: str = str(e)
-          err_msg: str = '%s: %s' % (error_class, error_description)
-          print(err_msg)
-          return None
+            error_class: type = type(e)
+            error_description: str = str(e)
+            err_msg: str = '%s: %s' % (error_class, error_description)
+            print(err_msg)
+            print_traceback()
+            return None
 
     def process_directory(self, dir_path: str) -> None:
         file_list: List[str] = self.list_files_recursive(dir_path)
@@ -276,74 +284,76 @@ class Predictor:
         start: float = time.perf_counter()
         last_cnt: int = 0
         cnt: int = 0
-        with concurrent.futures.ThreadPoolExecutor(max_workers=WORKER_NUM) as executor:
-            # dispatch get Tensor task to processes
-            future_to_path = {executor.submit(self.gen_image_tensor, file_path): file_path for file_path in file_list}
-            #for file_path in file_list:
-            for future in concurrent.futures.as_completed(future_to_path):
-                path = future_to_path[future]
-                try:
-                    tensor = future.result()
-                    if tensor is None:
-                        continue
-                    # img: Optional[Image.Image] = None
-                    # try:
-                    #     img: Image.Image = Image.open(file_path)
-                    # except Exception as e:
-                    #     if img is not None:
-                    #         img.close()
-                    #     print(f"Failed to open image: {file_path}")
-                    #     continue
-                    # img.load()
-                    tensors.append(tensor)
-
-                    fpathes.append(path)
-
-                    if len(tensors) >= BATCH_SIZE:
-                        results_in_csv_format: List[str] = self.predict(tensors, 0.3, True, 0.3, True)
-                        for idx, line in enumerate(results_in_csv_format):
-                            self.write_to_file(fpathes[idx] + ',' + line)
-                        tensors = []
-                        fpathes = []
-
-                    cnt += 1
-
-                    if cnt - last_cnt >= PROGRESS_INTERVAL:
-                        now: float = time.perf_counter()
-                        print(f'{cnt} files processed')
-                        diff: float = now - start
-                        print('{:.2f} seconds elapsed'.format(diff))
-                        if cnt > 0:
-                            time_per_file: float = diff / cnt
-                            print('{:.4f} seconds per file'.format(time_per_file))
-                        print("", flush=True)
-                        last_cnt = cnt
-
-                except Exception as e:
-                    # if img is not None:
-                    #     img.close()
-                    error_class: type = type(e)
-                    error_description: str = str(e)
-                    err_msg: str = '%s: %s' % (error_class, error_description)
-                    print(err_msg)
-                    print_traceback()
+ #       with concurrent.futures.ThreadPoolExecutor(max_workers=WORKER_NUM) as executor:
+ #           # dispatch get Tensor task to processes
+ #           future_to_path = {executor.submit(self.load_tensor_th, file_path): file_path for file_path in file_list}
+        for file_path in file_list:
+        #for future in concurrent.futures.as_completed(future_to_path):
+            #path = future_to_path[future]
+            try:
+                #tensor = future.result()
+                tensor = self.load_tensor_th(file_path)
+                if tensor is None:
                     continue
+                # img: Optional[Image.Image] = None
+                # try:
+                #     img: Image.Image = Image.open(file_path)
+                # except Exception as e:
+                #     if img is not None:
+                #         img.close()
+                #     print(f"Failed to open image: {file_path}")
+                #     continue
+                # img.load()
+                tensors.append(tensor)
+
+                fpathes.append(file_path)
+
+                if len(tensors) >= BATCH_SIZE:
+                    results_in_csv_format: List[str] = self.predict(tensors, 0.3, True, 0.3, True)
+                    for idx, line in enumerate(results_in_csv_format):
+                        self.write_to_file(fpathes[idx] + ',' + line)
+                    tensors = []
+                    fpathes = []
+
+                cnt += 1
+
+                if cnt - last_cnt >= PROGRESS_INTERVAL:
+                    now: float = time.perf_counter()
+                    print(f'{cnt} files processed')
+                    diff: float = now - start
+                    print('{:.2f} seconds elapsed'.format(diff))
+                    if cnt > 0:
+                        time_per_file: float = diff / cnt
+                        print('{:.4f} seconds per file'.format(time_per_file))
+                    print("", flush=True)
+                    last_cnt = cnt
+
+            except Exception as e:
+                # if img is not None:
+                #     img.close()
+                error_class: type = type(e)
+                error_description: str = str(e)
+                err_msg: str = '%s: %s' % (error_class, error_description)
+                print(err_msg)
+                print_traceback()
+                continue
 
 
-# def main(arg_str: str) -> None:
-def main(arg_str: List[str]) -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    parser.add_argument('--dir', nargs=1, required=True, help='tagging target directory path')
-    args: argparse.Namespace = parser.parse_args(arg_str)
+def main(arg_str: str) -> None:
+# def main(arg_str: List[str]) -> None:
+    #parser: argparse.ArgumentParser = argparse.ArgumentParser()
+    #parser.add_argument('--dir', nargs=1, required=True, help='tagging target directory path')
+    #args: argparse.Namespace = parser.parse_args(arg_str)
     predictor: Predictor = Predictor()
-    # predictor.process_directory(arg_str)
-    predictor.process_directory(args.dir[0])
+    predictor.process_directory(arg_str)
+    #predictor.process_directory(args.dir[0])
 
-if __name__ == '__main__':
-    # multiprocessing.set_start_method("spawn", force=True)
-    # freeze_support()
-    main(sys.argv[1:])
+# if __name__ == '__main__':
+#     # multiprocessing.set_start_method("spawn", force=True)
+#     # freeze_support()
+#     main(sys.argv[1:])
 
 
-#main('/content/freepik')
+main('/content/freepik')
 
+# ! cp tags-wd-tagger.txt /content/drive/MyDrive/tags-wd-tagger.txt
