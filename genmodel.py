@@ -10,6 +10,7 @@ import logging
 import numpy as np
 
 TRAIN_EPOCHS = 100
+VECTOR_LENGTH = 300
 
 # generate corpus for gensim and index text file for search tool
 def read_documents_and_gen_idx_text(file_path: str) -> Tuple[List[List[str]],List[TaggedDocument]]:
@@ -114,10 +115,12 @@ def main(arg_str: list[str]) -> None:
         pickle.dump(dictionary, f)
 
     # gen Doc2Vec model with specified number of dimensions
-    doc2vec_model: Doc2Vec = Doc2Vec(vector_size=300, window=50, min_count=1, workers=1, dm=0)
+    doc2vec_model: Doc2Vec = Doc2Vec(vector_size=VECTOR_LENGTH, window=50, min_count=1, workers=1, dm=0)
     doc2vec_model.build_vocab(tagged_docs)
     doc2vec_model.train(tagged_docs, total_examples=doc2vec_model.corpus_count, epochs=TRAIN_EPOCHS)
     doc2vec_model.save("doc2vec_model")
+
+    # doc2vec_model = Doc2Vec.load("doc2vec_model")
 
     # similarity index
     index: Similarity = None
@@ -126,7 +129,7 @@ def main(arg_str: list[str]) -> None:
     for doc in processed_docs:
         embed_vec = doc2vec_model.infer_vector(doc)
         if index is None:
-            index = Similarity("doc2vec_index", [embed_vec], num_features=300)
+            index = Similarity('doc2vec_index', [embed_vec], num_features=VECTOR_LENGTH)
         else:
             index.add_documents([embed_vec])
 
