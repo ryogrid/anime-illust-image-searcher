@@ -337,6 +337,9 @@ class Predictor:
 def main(arg_str: list[str]) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('--dir', nargs=1, required=True, help='tagging target directory path')
+    # Note: when specified --after, create tags-wd-tagger.txt.bak file and update tags-wd-tagger.txt
+    parser.add_argument('--after', nargs=1,
+                        help='tagging new images after this date (mtime attribute). Format: YYYY-MM-DD')
     args: argparse.Namespace = parser.parse_args(arg_str)
 
     predictor: Predictor = Predictor()

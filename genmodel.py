@@ -1,3 +1,4 @@
+import argparse
 import sys
 
 from gensim import corpora
@@ -98,9 +99,12 @@ def main(arg_str: list[str]) -> None:
         level=logging.DEBUG
     )
 
-    # parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    # parser.add_argument('--dim', nargs=1, type=int, required=True, help='number of dimensions at LSI model')
-    # args: argparse.Namespace = parser.parse_args(arg_str)
+    parser: argparse.ArgumentParser = argparse.ArgumentParser()
+    #parser.add_argument('--dim', nargs=1, type=int, required=True, help='number of dimensions at LSI model')
+    # Note: new files are diff between tags-wd-tagger.txt and tags-wd-tagger.txt.bak
+    #       when specified --update, check mdate of tags-wd-tagger.txt.bak and bm25_D file for avoiding duplicated entries insertion
+    parser.add_argument('--update', nargs='?', type=bool, default=True, help='add new images to index')
+    args: argparse.Namespace = parser.parse_args(arg_str)
 
     tmp_tuple : [List[List[str]], List[TaggedDocument]] = read_documents_and_gen_idx_text('tags-wd-tagger.txt')
     processed_docs: List[List[str]] = tmp_tuple[0]
