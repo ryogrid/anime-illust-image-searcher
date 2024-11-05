@@ -284,60 +284,68 @@ class Predictor:
         start: float = time.perf_counter()
         last_cnt: int = 0
         cnt: int = 0
- #       with concurrent.futures.ThreadPoolExecutor(max_workers=WORKER_NUM) as executor:
- #           # dispatch get Tensor task to processes
- #           future_to_path = {executor.submit(self.load_tensor_th, file_path): file_path for file_path in file_list}
-        for file_path in file_list:
-        #for future in concurrent.futures.as_completed(future_to_path):
-            #path = future_to_path[future]
-            try:
-                #tensor = future.result()
-                tensor = self.load_tensor_th(file_path)
-                if tensor is None:
-                    continue
-                # img: Optional[Image.Image] = None
-                # try:
-                #     img: Image.Image = Image.open(file_path)
-                # except Exception as e:
-                #     if img is not None:
-                #         img.close()
-                #     print(f"Failed to open image: {file_path}")
-                #     continue
-                # img.load()
-                tensors.append(tensor)
+        failed_cnt: int = 0
+        passed_idx: int = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=WORKER_NUM) as executor:
+            #           # dispatch get Tensor task to processes
+            future_to_path = {executor.submit(self.load_tensor_th, file_path): file_path for file_path in
+                              file_list[0: BATCH_SIZE]}
+            passed_idx += BATCH_SIZE
+            # for file_path in file_list:
+            while passed_idx < len(file_list):
+                for future in concurrent.futures.as_completed(future_to_path):
+                    path = future_to_path[future]
+                    try:
+                        tensor = future.result()
+                        # tensor = self.load_tensor_th(file_path)
+                        if tensor is None:
+                            failed_cnt += 1
+                            cnt -= 1
+                            # continue
 
-                fpathes.append(file_path)
+                        if tensor is not None:
+                            tensors.append(tensor)
+                            fpathes.append(path)
 
-                if len(tensors) >= BATCH_SIZE:
-                    results_in_csv_format: List[str] = self.predict(tensors, 0.3, True, 0.3, True)
-                    for idx, line in enumerate(results_in_csv_format):
-                        self.write_to_file(fpathes[idx] + ',' + line)
-                    tensors = []
-                    fpathes = []
+                        if len(tensors) >= BATCH_SIZE - failed_cnt:
+                            # submit load Tensor tasks for next batch
+                            end_idx = passed_idx + BATCH_SIZE
+                            if end_idx > len(file_list):
+                                end_idx = len(file_list)
+                            future_to_path = {executor.submit(self.load_tensor_th, file_path): file_path for file_path
+                                              in file_list[passed_idx: end_idx]}
+                            passed_idx = end_idx
 
-                cnt += 1
+                            # run inference
+                            results_in_csv_format: List[str] = self.predict(tensors, 0.3, True, 0.3, True)
+                            for idx, line in enumerate(results_in_csv_format):
+                                self.write_to_file(fpathes[idx] + ',' + line)
+                            tensors = []
+                            fpathes = []
+                            failed_cnt = 0
 
-                if cnt - last_cnt >= PROGRESS_INTERVAL:
-                    now: float = time.perf_counter()
-                    print(f'{cnt} files processed')
-                    diff: float = now - start
-                    print('{:.2f} seconds elapsed'.format(diff))
-                    if cnt > 0:
-                        time_per_file: float = diff / cnt
-                        print('{:.4f} seconds per file'.format(time_per_file))
-                    print("", flush=True)
-                    last_cnt = cnt
+                        cnt += 1
 
-            except Exception as e:
-                # if img is not None:
-                #     img.close()
-                error_class: type = type(e)
-                error_description: str = str(e)
-                err_msg: str = '%s: %s' % (error_class, error_description)
-                print(err_msg)
-                print_traceback()
-                continue
+                        if cnt - last_cnt >= PROGRESS_INTERVAL:
+                            now: float = time.perf_counter()
+                            print(f'{cnt} files processed')
+                            diff: float = now - start
+                            print('{:.2f} seconds elapsed'.format(diff))
+                            if cnt > 0:
+                                time_per_file: float = diff / cnt
+                                print('{:.4f} seconds per file'.format(time_per_file))
+                            print("", flush=True)
+                            last_cnt = cnt
 
+                    except Exception as e:
+                        # if img is not None:
+                        #     img.close()
+                        error_class: type = type(e)
+                        error_description: str = str(e)
+                        err_msg: str = '%s: %s' % (error_class, error_description)
+                        print(err_msg)
+                        print_traceback()
+                        continue
 
 def main(arg_str: str) -> None:
 # def main(arg_str: List[str]) -> None:
