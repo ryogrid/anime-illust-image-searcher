@@ -1,3 +1,6 @@
+import argparse
+import copy
+import os
 import sys
 
 from gensim import corpora
@@ -11,6 +14,8 @@ import numpy as np
 
 TRAIN_EPOCHS = 100
 VECTOR_LENGTH = 300
+
+# python .\genmodel.py [ --update ]
 
 # generate corpus for gensim and index text file for search tool
 def read_documents_and_gen_idx_text(file_path: str) -> Tuple[List[List[str]],List[TaggedDocument]]:
@@ -91,6 +96,16 @@ def gen_and_save_bm25_index(corpus: List[List[str]], dictionary: corpora.Diction
     with open('bm25_doc_lengths', 'wb') as f:
         pickle.dump(bm25_doc_lengths, f)
 
+    print('BM25 index generated')
+
+def count_non_empty_lines(file_path):
+    count = 0
+    with open(file_path, 'r', encoding='utf-8') as file:
+        for line in file:
+            if line.strip():  # count only non-empty lines
+                count += 1
+    return count
+
 def main(arg_str: list[str]) -> None:
     format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(
@@ -98,32 +113,59 @@ def main(arg_str: list[str]) -> None:
         level=logging.DEBUG
     )
 
-    # parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    # parser.add_argument('--dim', nargs=1, type=int, required=True, help='number of dimensions at LSI model')
-    # args: argparse.Namespace = parser.parse_args(arg_str)
+    parser: argparse.ArgumentParser = argparse.ArgumentParser()
+    #parser.add_argument('--dim', nargs=1, type=int, required=True, help='number of dimensions at LSI model')
+    # Note: new files are diff between tags-wd-tagger.txt and tags-wd-tagger.txt.bak
+    #       when specified --update, check mdate of tags-wd-tagger.txt.bak and bm25_D file for avoiding duplicated entries insertion
+    parser.add_argument('--update', action='store_true', help='add new images to index')
+    args: argparse.Namespace = parser.parse_args(arg_str)
+
+    if args.update:
+        if os.path.exists('tags-wd-tagger_doc2vec_idx.csv'):
+            with open('tags-wd-tagger_doc2vec_idx.csv', 'r', encoding='utf-8') as f:
+                with open('tags-wd-tagger_doc2vec_idx.csv.bak', 'w', encoding='utf-8') as f_bak:
+                    f_bak.write(f.read())
+        else:
+            print('tags-wd-tagger_doc2vec_idx.csv not found')
+            exit(1)
 
     tmp_tuple : [List[List[str]], List[TaggedDocument]] = read_documents_and_gen_idx_text('tags-wd-tagger.txt')
     processed_docs: List[List[str]] = tmp_tuple[0]
+    processed_docs_for_bm25: List[List[str]] = copy.deepcopy(processed_docs)
     tagged_docs: List[TaggedDocument] = tmp_tuple[1]
 
-    # image file => doc_id
-    dictionary: corpora.Dictionary = corpora.Dictionary(processed_docs)
-    # remove frequent tags
-    #dictionary.filter_n_most_frequent(500)
+    if args.update is None or args.update is False:
+        exit(1)
 
-    with open('doc2vec_dictionary', 'wb') as f:
-        pickle.dump(dictionary, f)
+    if args.update:
+        with open('doc2vec_dictionary', 'rb') as f:
+            dictionary: corpora.Dictionary = pickle.load(f)
+        doc2vec_model: Doc2Vec = Doc2Vec.load("doc2vec_model")
+        index: Similarity = Similarity.load("doc2vec_index")
 
-    # gen Doc2Vec model with specified number of dimensions
-    doc2vec_model: Doc2Vec = Doc2Vec(vector_size=VECTOR_LENGTH, window=50, min_count=1, workers=1, dm=0)
-    doc2vec_model.build_vocab(tagged_docs)
-    doc2vec_model.train(tagged_docs, total_examples=doc2vec_model.corpus_count, epochs=TRAIN_EPOCHS)
-    doc2vec_model.save("doc2vec_model")
+        before_update_lines: int = count_non_empty_lines('tags-wd-tagger_doc2vec_idx.csv.bak')
 
-    # doc2vec_model = Doc2Vec.load("doc2vec_model")
+        print(f'update index: {len(processed_docs) - before_update_lines} files')
 
-    # similarity index
-    index: Similarity = None
+        # adding vector for new images only
+        processed_docs: List[List[str]] = processed_docs[before_update_lines:]
+    else:
+        # image file => doc_id
+        dictionary: corpora.Dictionary = corpora.Dictionary(processed_docs)
+        # remove frequent tags
+        #dictionary.filter_n_most_frequent(500)
+
+        with open('doc2vec_dictionary', 'wb') as f:
+            pickle.dump(dictionary, f)
+
+        # gen Doc2Vec model with specified number of dimensions
+        doc2vec_model: Doc2Vec = Doc2Vec(vector_size=VECTOR_LENGTH, window=50, min_count=1, workers=1, dm=0)
+        doc2vec_model.build_vocab(tagged_docs)
+        doc2vec_model.train(tagged_docs, total_examples=doc2vec_model.corpus_count, epochs=TRAIN_EPOCHS)
+        doc2vec_model.save("doc2vec_model")
+
+        # similarity index
+        index: Similarity = None
 
     # store each image infos to index
     for doc in processed_docs:
@@ -135,7 +177,7 @@ def main(arg_str: list[str]) -> None:
 
     index.save("doc2vec_index")
 
-    gen_and_save_bm25_index(processed_docs, dictionary)
+    gen_and_save_bm25_index(processed_docs_for_bm25, dictionary)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
