@@ -1,3 +1,4 @@
+import datetime
 import os, time
 
 import pandas as pd
@@ -262,11 +263,34 @@ class Predictor:
     #         print_traceback()
     #         return None
 
-    def process_directory(self, dir_path: str) -> None:
+    def filter_files_by_date(self, file_list: List[str], added_date: datetime.date) -> List[str]:
+        filtered_list: List[str] = []
+        for file_path in file_list:
+            stat = os.stat(file_path)
+            ctime: datetime.date = datetime.date.fromtimestamp(stat.st_ctime)
+            if ctime >= added_date:
+                filtered_list.append(file_path)
+
+        return filtered_list
+
+    def process_directory(self, dir_path: str, added_date: datetime.date | None = None) -> None:
         file_list: List[str] = self.list_files_recursive(dir_path)
         print(f'{len(file_list)} files found')
 
-        self.f = open('tags-wd-tagger.txt', 'w', encoding='utf-8')
+        # tag new images after specified date
+        if added_date is not None:
+            file_list = self.filter_files_by_date(file_list, added_date)
+            print(f'{len(file_list)} files found after {added_date}')
+            # backup tags-wd-tagger.txt with copying to tags-wd-tagger.txt.bak
+            if os.path.exists('tags-wd-tagger.txt'):
+                with open('tags-wd-tagger.txt', 'r', encoding='utf-8') as f:
+                    with open('tags-wd-tagger.txt.bak', 'w', encoding='utf-8') as f_bak:
+                        f_bak.write(f.read())
+            else:
+                print('tags-wd-tagger.txt not found')
+                exit(1)
+
+        self.f = open('tags-wd-tagger.txt', 'a', encoding='utf-8')
 
         self.load_model()
 
@@ -343,7 +367,20 @@ def main(arg_str: list[str]) -> None:
     args: argparse.Namespace = parser.parse_args(arg_str)
 
     predictor: Predictor = Predictor()
-    predictor.process_directory(args.dir[0])
+    if args.after is not None:
+        try:
+            after_date: datetime.date = datetime.datetime.strptime(args.after[0], '%Y-%m-%d').date()
+        except Exception as e:
+            error_class: type = type(e)
+            error_description: str = str(e)
+            err_msg: str = '%s: %s' % (error_class, error_description)
+            print(err_msg)
+            print('Invalid date format. format is YYYY-MM-DD')
+            exit(1)
+
+        predictor.process_directory(args.dir[0], after_date)
+    else:
+        predictor.process_directory(args.dir[0])
 
 if __name__ == "__main__":
     main(sys.argv[1:])
