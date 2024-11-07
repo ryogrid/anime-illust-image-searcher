@@ -1,3 +1,5 @@
+# https://huggingface.co/spaces/deepghs/ccip/blob/f7d50a4f5dd3d4681984187308d70839ff0d3f5b/ccip.py
+
 import datetime
 import os, time
 
@@ -8,23 +10,28 @@ import concurrent.futures
 
 import json
 import os.path
-from functools import lru_cache
 from io import TextIOWrapper
-from typing import Union, List, Optional
+from typing import List, Optional
 
 import numpy as np
 from PIL import Image
 from huggingface_hub import hf_hub_download, HfFileSystem
-
-from imgutils.data import MultiImagesTyping, load_images, ImageTyping
-from imgutils.utils import open_onnx_model
-from onnxruntime import InferenceSession
 from gensim.similarities import Similarity
+
+try:
+    from imgutils.data import load_images, ImageTyping
+    from imgutils.utils import open_onnx_model
+    from onnxruntime import InferenceSession
+except (ModuleNotFoundError, ImportError):
+    print('Please install the imgutils and onnxruntime package to use charactor feature extraction.')
 
 try:
     from typing import Literal
 except (ModuleNotFoundError, ImportError):
-    from typing_extensions import Literal
+    try:
+        from typing_extensions import Literal
+    except (ModuleNotFoundError, ImportError):
+        pass
 
 hf_fs = HfFileSystem()
 
@@ -73,28 +80,6 @@ class Predictor:
                     file_list.append(file_path)
         return file_list
 
-    # def prepare_image(self, image: Image.Image) -> Image.Image:
-    #     #target_size: int = self.model_target_size
-    #
-    #     if image.mode in ('RGBA', 'LA'):
-    #         background: Image.Image = Image.new("RGB", image.size, (255, 255, 255))
-    #         background.paste(image, mask=image.split()[-1])
-    #         image = background
-    #     else:
-    #         # copy image to avoid error at convert method call
-    #         image = image.copy()
-    #         image = image.convert("RGB")
-    #
-    #     image_shape: Tuple[int, int] = image.size
-    #     max_dim: int = max(image_shape)
-    #     pad_left: int = (max_dim - image_shape[0]) // 2
-    #     pad_top: int = (max_dim - image_shape[1]) // 2
-    #
-    #     padded_image: Image.Image = Image.new("RGB", (max_dim, max_dim), (255, 255, 255))
-    #     padded_image.paste(image, (pad_left, pad_top))
-    #
-    #     return padded_image
-
     def write_to_file(self, csv_line: str) -> None:
         self.f.write(csv_line + '\n')
 
@@ -120,7 +105,6 @@ class Predictor:
 
         return data
 
-    #@lru_cache()
     def _open_feat_model(self, model) -> InferenceSession:
         return open_onnx_model(hf_hub_download(
                 f'deepghs/ccip_onnx',
@@ -129,22 +113,9 @@ class Predictor:
             mode = 'CUDAExecutionProvider',
         )
 
-    # @lru_cache()
-    # def _open_metric_model(self, model):
-    #     return open_onnx_model(hf_hub_download(
-    #         f'deepghs/ccip_onnx',
-    #         f'{model}/model_metrics.onnx',
-    #     ))
-    #
-    # @lru_cache()
     def _open_metrics(self, model):
         with open(hf_hub_download(f'deepghs/ccip_onnx', f'{model}/metrics.json'), 'r') as f:
             return json.load(f)
-    #
-    # @lru_cache()
-    # def _open_cluster_metrics(self, model):
-    #     with open(hf_hub_download(f'deepghs/ccip_onnx', f'{model}/cluster.json'), 'r') as f:
-    #         return json.load(f)
 
     #def ccip_batch_extract_features(self, images: MultiImagesTyping, size: int = 384, model: str = _DEFAULT_MODEL_NAMES):
     def ccip_batch_extract_features(self, images: List[np.ndarray], size: int = 384,
@@ -218,14 +189,6 @@ class Predictor:
         """
         return self._open_metrics(model)['threshold']
 
-    # _FeatureOrImage = Union[ImageTyping, np.ndarray]
-
-    # def _p_feature(self, x: _FeatureOrImage, size: int = 384, model: str = _DEFAULT_MODEL_NAMES):
-    #     if isinstance(x, np.ndarray):  # if feature
-    #         return x
-    #     else:  # is image or path
-    #         return self.ccip_extract_feature(x, size, model)
-
     def predict(
             self,
             images: List[np.ndarray],
@@ -234,25 +197,6 @@ class Predictor:
         ret = self.ccip_batch_extract_features(images)
         print("Processing results...")
         return ret
-        # batched_tensor = torch.stack(tensors, dim=0)
-        #
-        # print("Running inference...")
-        # with torch.inference_mode():
-        #     # move model to GPU, if available
-        #     model = self.tagger_model
-        #     if torch_device.type != "cpu":
-        #         model = self.tagger_model.to(torch_device)
-        #         batched_tensor = batched_tensor.to(torch_device)
-        #     # run the model
-        #     outputs = model.forward(batched_tensor)
-        #     # apply the final activation function (timm doesn't support doing this internally)
-        #     outputs = F.sigmoid(outputs)
-        #     # move inputs, outputs, and model back to to cpu if we were on GPU
-        #     if torch_device.type != "cpu":
-        #         outputs = outputs.to("cpu")
-        #
-        # print("Processing results...")
-        # preds = outputs.numpy()
 
     def gen_image_ndarray(self, file_path) -> np.ndarray | None:
         try:
@@ -266,6 +210,14 @@ class Predictor:
             print(err_msg)
             return None
 
+    def get_image_feature(self, file_path: str) -> np.ndarray:
+        if self.cindex is None:
+            self.cindex = Similarity.load('charactor-featues-idx')
+            self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES)
+
+        img: np.ndarray = self.gen_image_ndarray(file_path)
+        return self.predict([img])[0]
+
     def write_vecs_to_index(self, vecs: np.ndarray) -> bool:
         for vec in vecs:
             if self.cindex is None:
@@ -277,7 +229,6 @@ class Predictor:
         file_list: List[str] = self.list_files_recursive(dir_path)
         print(f'{len(file_list)} files found')
 
-        # self.load_model()
         self.embed_model = self._open_feat_model(_DEFAULT_MODEL_NAMES)
         self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES)
         self.f = open('charactor-featues-idx.csv', 'a', encoding='utf-8')
