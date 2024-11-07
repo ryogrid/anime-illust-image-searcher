@@ -102,7 +102,7 @@
 - [x] Weight specifying to tags like prompt format of Stable Diffusion Web UI
   - Current implemenataion uses all tags faialy. But there is many cases that users want to emphasize specific tags and can't get appropriate results without that!
 - [x] Fix a bug: some type of tags on tags-wd-tagger.txt can't be used on query 
-- [ ] Incremental index updating at image files increasing
+- [x] Incremental index updating at image files increasing
 - [ ] Similar image search with specifying a image file 
 - [x] Exporting found files list feature
   - In text file. Once you get list, many other tools and viewer you like can be used :)
