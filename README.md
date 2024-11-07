@@ -34,7 +34,9 @@
     - You may speed up with setup libraries and drivers for using GPU :)
       - Plese see [here](https://pytorch.org/get-started/previous-versions/#v241)
         - Current pytorch version of this repo is v2.4.1
-      - You should install pytorch-cuda PyPi package matching wich CUDA library on your machine additionaly. And cuDNN library matching wich the CUDA library should be installed also :) 
+      - You should install pytorch package supporting CUDA matching wich CUDA library on your machine additionaly. And cuDNN library matching wich the CUDA library should be installed also :)
+        - Example of pytorch install command line: $ pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+        - If your graphic board is not supported by CUDA 12.1.x library, you should change version of torchXXXXX packages
   - Pathes and tags of image files are saved to tags-wd-tagger.txt
 - $ python genmodel.py
   - This takes quite a while...
