@@ -134,9 +134,6 @@ def main(arg_str: list[str]) -> None:
     processed_docs_for_bm25: List[List[str]] = copy.deepcopy(processed_docs)
     tagged_docs: List[TaggedDocument] = tmp_tuple[1]
 
-    if args.update is None or args.update is False:
-        exit(1)
-
     if args.update:
         with open('doc2vec_dictionary', 'rb') as f:
             dictionary: corpora.Dictionary = pickle.load(f)
