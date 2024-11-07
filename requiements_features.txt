@@ -1,0 +1,10 @@
+numpy
+pillow
+onnxruntime-gpu
+huggingface_hub
+scikit-image
+pandas
+opencv-python>=4.6.0
+hbutils>=0.9.0
+dghs-imgutils>=0.2.3
+httpx==0.23.0
