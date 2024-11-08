@@ -96,9 +96,15 @@
     - This is problem of current implentation. When you use scripts on Windows and charactor code of directory/file names isn't utf-8, the problem may occur
 
 ## Information Related to Copyrights
-- I used [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) as reference wheh implmenting tagger script
-- ["WD EVA02-Large Tagger v3" model](https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3) is used for image file tagging
-- **I thank to great works of SmilingWolf**
+- Tagger
+  - [this code](https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py) was used as reference wheh implmenting tagger script
+  - ["WD EVA02-Large Tagger v3" model](https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3) is used for image file tagging
+  - **I thank to great works of SmilingWolf**
+- Character visual similarity calculation
+  - [this code](https://huggingface.co/spaces/deepghs/ccip/blob/f7d50a4f5dd3d4681984187308d70839ff0d3f5b/ccip.py) was used as reference when implemnting model execution
+  - [CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip) is used
+    - (This metrics based reranking mode exists. But usage is not described yet...)  
+  - **I thank to great works of deepghs community members**
 
 ## For Busy People
 - **Tagging using Google Colab env !**
