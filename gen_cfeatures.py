@@ -11,7 +11,7 @@ import concurrent.futures
 import json
 import os.path
 from io import TextIOWrapper
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 from PIL import Image
@@ -65,6 +65,7 @@ def print_traceback() -> None:
 class Predictor:
     def __init__(self) -> None:
         self.embed_model: Optional[InferenceSession] = None
+        self.metric_model: Optional[InferenceSession] = None
         self.threshold: float = -1.0
         self.f: Optional[TextIOWrapper] = None
         self.cindex: Optional[Similarity] = None
@@ -105,17 +106,25 @@ class Predictor:
 
         return data
 
-    def _open_feat_model(self, model) -> InferenceSession:
+    def _open_feat_model(self, model, executor = 'CUDAExecutionProvider') -> InferenceSession:
         return open_onnx_model(hf_hub_download(
                 f'deepghs/ccip_onnx',
                 f'{model}/model_feat.onnx',
             ),
-            mode = 'CUDAExecutionProvider',
+            mode = executor,
         )
 
     def _open_metrics(self, model):
         with open(hf_hub_download(f'deepghs/ccip_onnx', f'{model}/metrics.json'), 'r') as f:
             return json.load(f)
+
+    def _open_metric_model(self, model, executor = 'CUDAExecutionProvider') -> InferenceSession:
+        return open_onnx_model(hf_hub_download(
+            f'deepghs/ccip_onnx',
+            f'{model}/model_metrics.onnx',
+            ),
+            mode = executor,
+        )
 
     #def ccip_batch_extract_features(self, images: MultiImagesTyping, size: int = 384, model: str = _DEFAULT_MODEL_NAMES):
     def ccip_batch_extract_features(self, images: List[np.ndarray], size: int = 384,
@@ -189,6 +198,78 @@ class Predictor:
         """
         return self._open_metrics(model)['threshold']
 
+    _FeatureOrImage = Union[ImageTyping, np.ndarray]
+
+    def _p_feature(self, x: _FeatureOrImage, size: int = 384, model: str = _DEFAULT_MODEL_NAMES):
+        if isinstance(x, np.ndarray):  # if feature
+            return x
+        else:  # is image or path
+            return self.ccip_extract_feature(x, size, model)
+
+    def ccip_difference(self, x: _FeatureOrImage, y: _FeatureOrImage,
+                        size: int = 384, model: str = _DEFAULT_MODEL_NAMES) -> float:
+        """
+        Calculates the difference value between two anime characters based on their images or feature vectors.
+        :param x: The image or feature vector of the first anime character.
+        :type x: Union[ImageTyping, np.ndarray]
+        :param y: The image or feature vector of the second anime character.
+        :type y: Union[ImageTyping, np.ndarray]
+        :param size: The size of the input image to be used for feature extraction. (default: ``384``)
+        :type size: int
+        :param model: The name of the model to use for feature extraction. (default: ``ccip-caformer-24-randaug-pruned``)
+                      The available model names are: ``ccip-caformer-24-randaug-pruned``,
+                      ``ccip-caformer-6-randaug-pruned_fp32``, ``ccip-caformer-5_fp32``.
+        :type model: str
+        :return: The difference value between the two anime characters.
+        :rtype: float
+        Examples::
+            >>> from imgutils.metrics import ccip_difference
+            >>>
+            >>> ccip_difference('ccip/1.jpg', 'ccip/2.jpg')  # same character
+            0.16583099961280823
+            >>>
+            >>> # different characters
+            >>> ccip_difference('ccip/1.jpg', 'ccip/6.jpg')
+            0.42947039008140564
+            >>> ccip_difference('ccip/1.jpg', 'ccip/7.jpg')
+            0.4037521779537201
+            >>> ccip_difference('ccip/2.jpg', 'ccip/6.jpg')
+            0.4371533691883087
+            >>> ccip_difference('ccip/2.jpg', 'ccip/7.jpg')
+            0.40748104453086853
+            >>> ccip_difference('ccip/6.jpg', 'ccip/7.jpg')
+            0.392294704914093
+        """
+        return self.ccip_batch_differences([x, y], size, model)[0, 1].item()
+
+    def ccip_batch_differences(self, images: List[_FeatureOrImage],
+                               size: int = 384, model: str = _DEFAULT_MODEL_NAMES) -> np.ndarray:
+        """
+        Calculates the pairwise differences between a given list of images or feature vectors representing anime characters.
+        :param images: The list of images or feature vectors representing anime characters.
+        :type images: List[Union[ImageTyping, np.ndarray]]
+        :param size: The size of the input image to be used for feature extraction. (default: ``384``)
+        :type size: int
+        :param model: The name of the model to use for feature extraction. (default: ``ccip-caformer-24-randaug-pruned``)
+                      The available model names are: ``ccip-caformer-24-randaug-pruned``,
+                      ``ccip-caformer-6-randaug-pruned_fp32``, ``ccip-caformer-5_fp32``.
+        :type model: str
+        :return: The matrix of pairwise differences between the given images or feature vectors.
+        :rtype: np.ndarray
+        Examples::
+            >>> from imgutils.metrics import ccip_batch_differences
+            >>>
+            >>> ccip_batch_differences(['ccip/1.jpg', 'ccip/2.jpg', 'ccip/6.jpg', 'ccip/7.jpg'])
+            array([[6.5350548e-08, 1.6583106e-01, 4.2947042e-01, 4.0375218e-01],
+                   [1.6583106e-01, 9.8025822e-08, 4.3715334e-01, 4.0748104e-01],
+                   [4.2947042e-01, 4.3715334e-01, 3.2675274e-08, 3.9229470e-01],
+                   [4.0375218e-01, 4.0748104e-01, 3.9229470e-01, 6.5350548e-08]],
+                  dtype=float32)
+        """
+        input_ = np.stack([self._p_feature(img, size, model) for img in images]).astype(np.float32)
+        output, = self.metric_model.run(['output'], {'input': input_})
+        return output
+
     def predict(
             self,
             images: List[np.ndarray],
@@ -213,7 +294,7 @@ class Predictor:
     def get_image_feature(self, file_path: str) -> np.ndarray:
         if self.cindex is None:
             self.cindex = Similarity.load('charactor-featues-idx')
-            self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES)
+            self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES) / 1.5
 
         img: np.ndarray = self.gen_image_ndarray(file_path)
         return self.predict([img])[0]

@@ -16,7 +16,7 @@ import time
 from typing import List, Tuple, Dict, Any, Optional, Protocol
 
 # for use character features vector
-from gen_cfeatures import Predictor
+from gen_cfeatures import Predictor, _DEFAULT_MODEL_NAMES
 
 # $ streamlit run webui.py
 
@@ -265,6 +265,8 @@ def get_cfeatures_based_reranked_scores(final_scores, topn) -> List[Tuple[int, f
 
     if predictor is None:
         predictor = Predictor()
+        predictor.embed_model = predictor._open_feat_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
+        predictor.metric_model = predictor._open_metric_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
 
     # when length of final_scores is larger than 10, calculate mean vector of cfeatures from top10 images
     # and calculate similarity between the mean vector and all images
@@ -274,23 +276,44 @@ def get_cfeatures_based_reranked_scores(final_scores, topn) -> List[Tuple[int, f
     sims: List[Tuple[int, float]] = list(enumerate(final_scores))
     sims = sorted(sims, key=lambda item: -item[1])
     if len(sims) > 10:
-        # Perform rescoring
+        # Perform rescoringad
         top10_sims = sims[:10]  # Top 10 documents
         top10_doc_ids: List[int] = [doc_id for doc_id, _ in top10_sims]
 
         # aggregete filepathes of top10 images
-        top10_files = [image_files_name_tags_arr[doc_id - 1].split(',')[0] for doc_id in top10_doc_ids]
+        top10_files = [image_files_name_tags_arr[doc_id].split(',')[0] for doc_id in top10_doc_ids]
 
         # get charactor features
-        top10_cfeatures: List[np.ndarray] = [predictor.get_image_feature(file) for file in top10_files]
-        weighted_mean_cfeatures: np.ndarray = np.average(top10_cfeatures, axis=0, weights=[score for _, score in top10_sims])
-        weighted_mean_cfeatures = weighted_mean_cfeatures / np.linalg.norm(weighted_mean_cfeatures)
-        conved_mean_cfeatures: List[Tuple[int, float]] = [(ii, val) for ii, val in enumerate(weighted_mean_cfeatures)]
-        sims_by_cfeature: np.ndarray = cfeatures_idx[conved_mean_cfeatures]
-        sorted_sims: List[Tuple[int, float]] = list(enumerate(sims_by_cfeature))
-        sorted_sims = sorted(sorted_sims, key=lambda item: -item[1])
+
+        top10_cfeatures: List[np.ndarray] = []
+        for file in top10_files:
+            try:
+                top10_cfeatures.append(predictor.get_image_feature(file))
+            except Exception as e:
+                print(f'Error: {e}')
+                continue
+        #weighted_mean_cfeatures: np.ndarray = np.average(top10_cfeatures, axis=0, weights=[score for _, score in top10_sims])
+        weighted_mean_cfeatures: np.ndarray = np.average(top10_cfeatures, axis=0)
+        #weighted_mean_cfeatures: np.ndarray = top10_cfeatures[0]
+        #weighted_mean_cfeatures = weighted_mean_cfeatures / np.linalg.norm(weighted_mean_cfeatures)
+        #conved_mean_cfeatures: List[Tuple[int, float]] = [(ii, val) for ii, val in enumerate(weighted_mean_cfeatures)]
+
+        # sims_by_cfeature: np.ndarray = cfeatures_idx[conved_mean_cfeatures]
+        diffs_by_cfeature_list: List[Tuple[int, float]] = []
+        for idx in range(0, len(cfeature_filepath_idx)):
+            diff: float = predictor.ccip_difference(cfeatures_idx.vector_by_id(idx), weighted_mean_cfeatures)
+            if diff < predictor.threshold:
+                diffs_by_cfeature_list.append((idx, 1.0 - diff))
+
+        # if sims_by_cfeature.max() > 0:
+        #     sims_by_cfeature = sims_by_cfeature / sims_by_cfeature.max()
+
+        #sorted_sims: List[Tuple[int, float]] = list(enumerate(sims_by_cfeature))
+        sorted_sims = sorted(diffs_by_cfeature_list, key=lambda item: -item[1])
         # filter by threshold
-        ret_sims = [(doc_id, score) for doc_id, score in sorted_sims if score > predictor.threshold]
+        ret_sims: List[Tuple[int, float]] = top10_sims
+        ret_sims += sorted_sims
+        #ret_sims += [(doc_id, score) for doc_id, score in sorted_sims if score > predictor.threshold]
         return ret_sims
     else:
         # Apply threshold filtering
@@ -533,11 +556,19 @@ def show_search_result() -> None:
     similar_docs: List[Tuple[int, float]] = find_similar_documents(search_tags, topn=800)
 
     found_docs_info: List[Dict[str, Any]] = []
+    idx_cnt: int = 0
     for doc_id, similarity in similar_docs:
         try:
             if cfeature_reranking_mode:
                 # special mode
-                found_fpath: str = cfeature_filepath_idx[doc_id]
+                if idx_cnt >= 10:
+                    found_fpath: str = cfeature_filepath_idx[doc_id]
+                    # empty
+                    found_img_info_splited: List[str] = []
+                else:
+                    # original top 10 images
+                    found_fpath: str = image_files_name_tags_arr[doc_id].split(',')[0]
+                    found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')[1:]
             else:
                 found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')
                 if is_include_ng_word(found_img_info_splited):
@@ -550,10 +581,12 @@ def show_search_result() -> None:
                 'file_path': found_fpath,
                 'doc_id': doc_id,
                 'similarity': similarity,
-                'tags': found_img_info_splited[1:]
+                'tags': found_img_info_splited[1:] if len(found_img_info_splited) > 1 else []
             })
+            idx_cnt += 1
         except Exception as e:
             print(f'Error: {e}')
+            idx_cnt += 1
             continue
 
     pages: List[List[List[Dict[str, Any]]]] = convert_data_structure(found_docs_info)
