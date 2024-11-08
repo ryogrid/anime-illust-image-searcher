@@ -30,7 +30,6 @@ dictionary: Optional[corpora.Dictionary] = None
 cfeatures_idx: Optional[MatrixSimilarity] = None
 cfeature_filepath_idx: Optional[List[str]] = None
 predictor: Optional[Predictor] = None
-cfeature_reranking_mode = False
 
 NG_WORDS: List[str] = ['language', 'english_text', 'pixcel_art']
 
@@ -359,9 +358,8 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
     final_scores = BM25_WEIGHT * bm25_scores + DOC2VEC_WEIGHT * sims_doc2vec
 
     # Rerank scores
-    if os.path.exists('charactor-featues-idx') and os.path.exists('charactor-featues-idx.csv'):
+    if ss['search_mode'] == 'character oriented':
         # special mode
-        cfeature_reranking_mode = True
         return get_cfeatures_based_reranked_scores(final_scores, topn)
     else:
         return get_doc2vec_based_reranked_scores(final_scores, topn)
@@ -373,6 +371,8 @@ def init_session_state(data: List[Any] = []) -> None:
         ss['last_search_tags'] = ''
     if 'selected_image_info' not in ss:
         ss['selected_image_info'] = None
+    if 'search_mode' not in ss:
+        ss['search_mode'] = 'normal'
     if len(data) > 0:
         ss['data'] = data
         ss['page_index'] = 0
@@ -453,9 +453,11 @@ def slideshow() -> None:
         ss['slideshow_active'] = False
         ss['slideshow_index'] = 0
         ss['text_input'] = ss['last_search_tags']
-    else:
-        time.sleep(5)
-        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
+        ss['search_mode'] = ss['last_serach_mode']
+        st.rerun()
+    #else:
+    time.sleep(5)
+    ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
     st.rerun()
 
 def is_now_slideshow() -> bool:
@@ -485,14 +487,9 @@ def display_images() -> None:
     if 'data' in ss and len(ss['data']) > 0:
         cols: Any = st.columns([10])
         with cols[0]:
-            if st.button('Slideshow'):
-                ss['slideshow_active'] = True
-                ss['slideshow_index'] = 0
-                st.rerun()
             if st.button('Export'):
                 export_result_to_file()
                 st.rerun()
-
             for data_per_page in ss['data'][ss['page_index']]:
                 cols = st.columns(5)
                 for col_index, col_ph in enumerate(cols):
@@ -546,6 +543,7 @@ def display_selected_image() -> None:
     if st.button('Close'):
         ss['selected_image_info'] = None
         ss['text_input'] = ss['last_search_tags']
+        ss['search_mode'] = ss['last_serach_mode']
         st.rerun()
 
 def show_search_result() -> None:
@@ -559,7 +557,7 @@ def show_search_result() -> None:
     idx_cnt: int = 0
     for doc_id, similarity in similar_docs:
         try:
-            if cfeature_reranking_mode:
+            if ss['search_mode'] == 'character oriented':
                 # special mode
                 if idx_cnt >= 10:
                     found_fpath: str = cfeature_filepath_idx[doc_id]
@@ -637,6 +635,7 @@ def main() -> None:
     global search_tags
     global args
     global ss
+    global cfeature_reranking_mode
 
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('--rep', nargs=2, required=False, help='replace the string in file path to one you want')
@@ -644,17 +643,32 @@ def main() -> None:
 
     init_session_state()
 
+    placeholder = st.empty()
     if is_now_slideshow():
-        slideshow()
-    else:
-        if 'selected_image_info' in ss and ss['selected_image_info']:
+        with placeholder.container():
+            slideshow()
+    elif 'selected_image_info' in ss and ss['selected_image_info']:
+        with placeholder.container():
             display_selected_image()
-        else:
+    else:
+        with placeholder.container():
             search_tags = st.text_input('Enter search tags', value='', key='text_input')
-            if search_tags and ss['last_search_tags'] != search_tags:
+            if st.button('Search'): #and ss['last_search_tags'] != search_tags:
                 ss['last_search_tags'] = search_tags
+                ss['last_serach_mode'] = ss['search_mode']
                 show_search_result()
-                st.rerun()
+            if os.path.exists('charactor-featues-idx') and os.path.exists('charactor-featues-idx.csv'):
+                # display only when index files are exist
+                st.selectbox(
+                    "search mode",
+                    ("normal", "character oriented"),
+                    key='search_mode'
+                )
             display_images()
+            if st.button('Slideshow'):
+                ss['slideshow_active'] = True
+                ss['slideshow_index'] = 0
+                placeholder.empty()
+                st.rerun()
 
 main()
