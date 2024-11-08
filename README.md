@@ -43,6 +43,18 @@
 - $ streamlit run webui.py
   - Search app is opend on your web browser
 
+## Index Data Updating
+- When you get and store new image files, you should update index data for adding the files to be hitted at search on webui.py
+- Procedure
+  - 1 Backup all files genarated by scripts on this repo!
+    - Model files on your home directory is exception :)
+  - 2 $ python --dir "IMAGE FILES CONTAINED DIR PATH" **--after "YYYY-MM-DD"**
+    - Param of --dir doesn't have to be changed
+    - Adding --after option is needed. Please specify date after last index data creation or update
+      - Tagging target is filtered by specified date: added date (cdate attribute) <= YYYY-MM-DD
+  - 3 $ python genmodel.py --update
+  - Thats's all!
+
 ## Usage (Binary Package of Windows at Release Page)
 - Same with above except that you need not to execute python and execution path (current path) is little bit different :)
 - First, unzip package and launch command prompt or PowerShell :)
