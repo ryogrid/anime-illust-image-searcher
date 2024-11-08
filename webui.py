@@ -1,4 +1,5 @@
 import math
+import os
 import sys
 
 from gensim import corpora
@@ -14,6 +15,9 @@ import streamlit as st
 import time
 from typing import List, Tuple, Dict, Any, Optional, Protocol
 
+# for use character features vector
+from gen_cfeatures import Predictor, _DEFAULT_MODEL_NAMES
+
 # $ streamlit run webui.py
 
 ss: SessionStateProxy = st.session_state
@@ -22,6 +26,13 @@ image_files_name_tags_arr: List[str] = []
 model: Optional[Doc2Vec] = None
 index: Optional[MatrixSimilarity] = None
 dictionary: Optional[corpora.Dictionary] = None
+file_tag_index_dict: Optional[Dict[str, Dict[str, bool]]] = None
+# mapping based on tagger result
+filepath_docid_dict: Optional[Dict[str, int]] = None
+
+cfeatures_idx: Optional[MatrixSimilarity] = None
+cfeature_filepath_idx: Optional[List[str]] = None
+predictor: Optional[Predictor] = None
 
 NG_WORDS: List[str] = ['language', 'english_text', 'pixcel_art']
 
@@ -174,51 +185,21 @@ def get_embedded_vector_by_doc_id(doc_id: int) -> List[Tuple[int, float]]:
     doc_doc2vec: List[Tuple[int, float]] = [(ii, val) for ii, val in enumerate(embed_vec)]
     return doc_doc2vec
 
-def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
-    # get embed vector using Doc2Vec model
-    vec_doc2vec: List[Tuple[int, float]] = normalize_and_apply_weight_doc2vec(new_doc)
-
-    # Existing similarity scores using Dod2Vec model
-    sims_doc2vec: ndarray = index[vec_doc2vec]
-
-    splited_term = [x for x in new_doc.split(' ')]
-    query_term_and_weight: Dict[int, float] = {}
-    for term in splited_term:
-        term_splited: List[str] = term.split(':')
-        if len(term_splited) >= 2 and ((term_splited[-1].startswith('+') or term_splited[-1].startswith('-') or term_splited[-1].isdigit())):
-            if term_splited[-1].startswith('+'):
-                # + indicates that the term is required and for making the term required, the weight is set to REQUIRE_TAG_MAGIC_NUMBER + weight
-                query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited) - 1])]] = REQUIRE_TAG_MAGIC_NUMBER + int(term_splited[-1])
-            else:
-                query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited) - 1])]] = int(term_splited[-1])
-        else:
-            query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited)])]] = 1
-
-    # BM25 scores
-    bm25_scores = compute_bm25_scores(query_weights=query_term_and_weight)
-
-    # Normalize scores
-    if sims_doc2vec.max() > 0:
-        sims_doc2vec = sims_doc2vec / sims_doc2vec.max()
-    if bm25_scores.max() > 0:
-        bm25_scores = bm25_scores / bm25_scores.max()
-
-    # Combine scores
-    final_scores = BM25_WEIGHT * bm25_scores + DOC2VEC_WEIGHT * sims_doc2vec
-
+def get_doc2vec_based_reranked_scores(final_scores, topn) -> List[Tuple[int, float]]:
     # Get top documents
     sims: List[Tuple[int, float]] = list(enumerate(final_scores))
     sims = sorted(sims, key=lambda item: -item[1])
-
     if len(sims) > 10:
         # Perform rescoring
         top10_sims = sims[:10]  # Top 10 documents
         top10_doc_ids: List[int] = [doc_id for doc_id, _ in top10_sims]
         top10_doc_ids_set = set(top10_doc_ids)
-        top10_doc_vectors: List[List[Tuple[int, float]]] = [get_embedded_vector_by_doc_id(doc_id + 1) for doc_id in top10_doc_ids]
+        top10_doc_vectors: List[List[Tuple[int, float]]] = [get_embedded_vector_by_doc_id(doc_id + 1) for doc_id in
+                                                            top10_doc_ids]
         weighted_mean_vec: ndarray = np.average(top10_doc_vectors, axis=0, weights=[score for _, score in top10_sims])
         weighted_mean_vec = weighted_mean_vec / np.linalg.norm(weighted_mean_vec)
-        weighted_mean_vec_with_docid: List[Tuple[int, float]] = [(round(docid), val) for docid, val in weighted_mean_vec.tolist()]
+        weighted_mean_vec_with_docid: List[Tuple[int, float]] = [(round(docid), val) for docid, val in
+                                                                 weighted_mean_vec.tolist()]
 
         reranked_scores: ndarray = index[weighted_mean_vec_with_docid]
 
@@ -262,7 +243,88 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
         if ret_len > len(final_sims):
             ret_len = len(final_sims)
         return final_sims[:ret_len]
+    else:
+        # Apply threshold filtering
+        sims = filter_searched_result(sims)
+        ret_len: int = topn
+        if ret_len > len(sims):
+            ret_len = len(sims)
+        return sims[:ret_len]
 
+def get_cfeatures_based_reranked_scores(final_scores, topn, required_tags: List[str], exclude_tags: List[str]) -> List[Tuple[int, float]]:
+    global cfeature_filepath_idx
+    global cfeatures_idx
+    global predictor
+
+    if cfeature_filepath_idx is None:
+        cfeature_filepath_idx = []
+        with open('charactor-featues-idx.csv', 'r', encoding='utf-8') as f:
+            for line in f:
+                cfeature_filepath_idx.append(line.strip())
+
+    if cfeatures_idx is None:
+        cfeatures_idx = MatrixSimilarity.load('charactor-featues-idx')
+
+    if predictor is None:
+        predictor = Predictor()
+        predictor.embed_model = predictor._open_feat_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
+        predictor.metric_model = predictor._open_metric_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
+
+    # when length of final_scores is larger than 10, calculate mean vector of cfeatures from top10 images
+    # and calculate similarity between the mean vector and all images
+    # then, sort the similarity and return images whose similarity is higher than threshold
+
+    # Get top documents
+    sims: List[Tuple[int, float]] = list(enumerate(final_scores))
+    sims = sorted(sims, key=lambda item: -item[1])
+    if len(sims) > 10:
+        # Perform rescoringad
+        top10_sims = sims[:10]  # Top 10 documents
+        top10_doc_ids: List[int] = [doc_id for doc_id, _ in top10_sims]
+
+        # aggregete filepathes of top10 images
+        top10_files = [image_files_name_tags_arr[doc_id].split(',')[0] for doc_id in top10_doc_ids]
+
+        # get charactor features
+        top10_cfeatures: List[np.ndarray] = []
+        for file in top10_files:
+            try:
+                top10_cfeatures.append(predictor.get_image_feature(file))
+            except Exception as e:
+                print(f'Error: {e}')
+                continue
+
+        weighted_mean_cfeatures: np.ndarray = np.average(top10_cfeatures, axis=0)
+        diffs_by_cfeature_list: List[Tuple[int, float]] = []
+
+        for idx in range(0, len(cfeature_filepath_idx)):
+            diff: float = predictor.ccip_difference(cfeatures_idx.vector_by_id(idx), weighted_mean_cfeatures)
+
+            is_include_required = False
+            if cfeature_filepath_idx[idx] in file_tag_index_dict:
+                is_include_required = all([tag in file_tag_index_dict[cfeature_filepath_idx[idx]] for tag in required_tags])
+            else:
+                # not found case is ignored...
+                is_include_required = False
+
+            is_not_include_exclude = False
+            if cfeature_filepath_idx[idx] in file_tag_index_dict:
+                is_not_include_exclude = all([tag not in file_tag_index_dict[cfeature_filepath_idx[idx]] for tag in exclude_tags])
+            else:
+                # not found case is ignored...
+                is_not_include_exclude = False
+
+            if diff < predictor.threshold and is_include_required and is_not_include_exclude:
+                # append doc_id and matching score
+                # doc_id is converted to one of index file besed on tagger result
+                diffs_by_cfeature_list.append((filepath_docid_dict[cfeature_filepath_idx[idx]], 1.0 - diff))
+
+        sorted_sims = sorted(diffs_by_cfeature_list, key=lambda item: -item[1])
+
+        ret_sims: List[Tuple[int, float]] = top10_sims
+        ret_sims += sorted_sims
+
+        return ret_sims
     else:
         # Apply threshold filtering
         sims = filter_searched_result(sims)
@@ -272,6 +334,53 @@ def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, floa
         return sims[:ret_len]
 
 
+def find_similar_documents(new_doc: str, topn: int = 50) -> List[Tuple[int, float]]:
+    global cfeature_reranking_mode
+
+    # get embed vector using Doc2Vec model
+    vec_doc2vec: List[Tuple[int, float]] = normalize_and_apply_weight_doc2vec(new_doc)
+
+    # Existing similarity scores using Dod2Vec model
+    sims_doc2vec: ndarray = index[vec_doc2vec]
+
+    splited_term = [x for x in new_doc.split(' ')]
+    query_term_and_weight: Dict[int, float] = {}
+    required_tags: List[str] = []
+    exclude_tags: List[str] = []
+    for term in splited_term:
+        term_splited: List[str] = term.split(':')
+        if len(term_splited) >= 2 and ((term_splited[-1].startswith('+') or term_splited[-1].startswith('-') or term_splited[-1].isdigit())):
+            if term_splited[-1].startswith('+'):
+                # + indicates that the term is required and for making the term required, the weight is set to REQUIRE_TAG_MAGIC_NUMBER + weight
+                tag: str = ':'.join(term_splited[0:len(term_splited) - 1])
+                query_term_and_weight[dictionary.token2id[tag]] = REQUIRE_TAG_MAGIC_NUMBER + int(term_splited[-1])
+                required_tags.append(tag)
+            else:
+                tag: str = ':'.join(term_splited[0:len(term_splited) - 1])
+                query_term_and_weight[dictionary.token2id[tag]] = int(term_splited[-1])
+                exclude_tags.append(tag)
+        else:
+            query_term_and_weight[dictionary.token2id[':'.join(term_splited[0:len(term_splited)])]] = 1
+
+    # BM25 scores
+    bm25_scores = compute_bm25_scores(query_weights=query_term_and_weight)
+
+    # Normalize scores
+    if sims_doc2vec.max() > 0:
+        sims_doc2vec = sims_doc2vec / sims_doc2vec.max()
+    if bm25_scores.max() > 0:
+        bm25_scores = bm25_scores / bm25_scores.max()
+
+    # Combine scores
+    final_scores = BM25_WEIGHT * bm25_scores + DOC2VEC_WEIGHT * sims_doc2vec
+
+    # Rerank scores
+    if ss['search_mode'] == 'character oriented':
+        # special mode
+        return get_cfeatures_based_reranked_scores(final_scores, topn, required_tags, exclude_tags)
+    else:
+        return get_doc2vec_based_reranked_scores(final_scores, topn)
+
 def init_session_state(data: List[Any] = []) -> None:
     global ss
     if 'data' not in ss:
@@ -279,6 +388,8 @@ def init_session_state(data: List[Any] = []) -> None:
         ss['last_search_tags'] = ''
     if 'selected_image_info' not in ss:
         ss['selected_image_info'] = None
+    if 'search_mode' not in ss:
+        ss['search_mode'] = 'normal'
     if len(data) > 0:
         ss['data'] = data
         ss['page_index'] = 0
@@ -359,9 +470,11 @@ def slideshow() -> None:
         ss['slideshow_active'] = False
         ss['slideshow_index'] = 0
         ss['text_input'] = ss['last_search_tags']
-    else:
-        time.sleep(5)
-        ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
+        ss['search_mode'] = ss['last_serach_mode']
+        st.rerun()
+    #else:
+    time.sleep(5)
+    ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
     st.rerun()
 
 def is_now_slideshow() -> bool:
@@ -391,14 +504,9 @@ def display_images() -> None:
     if 'data' in ss and len(ss['data']) > 0:
         cols: Any = st.columns([10])
         with cols[0]:
-            if st.button('Slideshow'):
-                ss['slideshow_active'] = True
-                ss['slideshow_index'] = 0
-                st.rerun()
             if st.button('Export'):
                 export_result_to_file()
                 st.rerun()
-
             for data_per_page in ss['data'][ss['page_index']]:
                 cols = st.columns(5)
                 for col_index, col_ph in enumerate(cols):
@@ -452,6 +560,7 @@ def display_selected_image() -> None:
     if st.button('Close'):
         ss['selected_image_info'] = None
         ss['text_input'] = ss['last_search_tags']
+        ss['search_mode'] = ss['last_serach_mode']
         st.rerun()
 
 def show_search_result() -> None:
@@ -462,32 +571,78 @@ def show_search_result() -> None:
     similar_docs: List[Tuple[int, float]] = find_similar_documents(search_tags, topn=800)
 
     found_docs_info: List[Dict[str, Any]] = []
+    idx_cnt: int = 0
     for doc_id, similarity in similar_docs:
         try:
+            # if ss['search_mode'] == 'character oriented':
+            #     # special mode
+            #     if idx_cnt >= 10:
+            #         found_fpath: str = cfeature_filepath_idx[doc_id]
+            #         # empty
+            #         found_img_info_splited: List[str] = []
+            #     else:
+            #         # original top 10 images
+            #         found_fpath: str = image_files_name_tags_arr[doc_id].split(',')[0]
+            #         found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')[1:]
+            # else:
             found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')
             if is_include_ng_word(found_img_info_splited):
                 continue
             found_fpath: str = found_img_info_splited[0]
+
             if args is not None and args.rep:
                 found_fpath = found_fpath.replace(args.rep[0], args.rep[1])
             found_docs_info.append({
                 'file_path': found_fpath,
                 'doc_id': doc_id,
                 'similarity': similarity,
-                'tags': found_img_info_splited[1:]
+                'tags': found_img_info_splited[1:] # if len(found_img_info_splited) > 1 else []
             })
+            idx_cnt += 1
         except Exception as e:
             print(f'Error: {e}')
+            idx_cnt += 1
             continue
 
     pages: List[List[List[Dict[str, Any]]]] = convert_data_structure(found_docs_info)
     init_session_state(pages)
+
+@st.cache_resource
+def get_file_tag_index_dict(file_path:str) -> Dict[str, Dict[str, bool]]:
+    tag_index: Dict[str, Dict[str, bool]] = {}
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            splited: List[str] = line.strip().split(',')
+            image_fpath:str = splited[0]
+            tags: List[str] = splited[1:]
+            tag_index[image_fpath] = {}
+            for tag in tags:
+                tag_index[image_fpath][tag] = True
+    return tag_index
+
+@st.cache_resource
+def gen_image_files_name_tags_arr(tag_file_path) -> List[str]:
+    ret_arr: List[str] = []
+    with open(tag_file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            ret_arr.append(line.strip())
+
+    return ret_arr
+
+@st.cache_resource
+def gen_filepath_docid_dict(image_files_name_tags_arr: List[str]) -> Dict[str, int]:
+    ret_dict: Dict[str, int] = {}
+    for idx, line in enumerate(image_files_name_tags_arr):
+        ret_dict[line.split(',')[0]] = idx
+    return ret_dict
 
 def load_model() -> None:
     global model
     global image_files_name_tags_arr
     global index
     global dictionary
+    global file_tag_index_dict
+    global filepath_docid_dict
     # BM25 variables
     global bm25_corpus
     global bm25_doc_lengths
@@ -496,10 +651,9 @@ def load_model() -> None:
     global bm25_D
 
     tag_file_path: str = 'tags-wd-tagger_doc2vec_idx.csv'
-    image_files_name_tags_arr = []
-    with open(tag_file_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            image_files_name_tags_arr.append(line.strip())
+    image_files_name_tags_arr = gen_image_files_name_tags_arr(tag_file_path)
+    file_tag_index_dict = get_file_tag_index_dict(tag_file_path)
+    filepath_docid_dict = gen_filepath_docid_dict(image_files_name_tags_arr)
 
     model = Doc2Vec.load("doc2vec_model")
 
@@ -524,10 +678,15 @@ def load_model() -> None:
         bm25_idf = ss['bm25_idf']
         bm25_D = ss['bm25_D']
 
+
+
+
+
 def main() -> None:
     global search_tags
     global args
     global ss
+    global cfeature_reranking_mode
 
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('--rep', nargs=2, required=False, help='replace the string in file path to one you want')
@@ -535,17 +694,32 @@ def main() -> None:
 
     init_session_state()
 
+    placeholder = st.empty()
     if is_now_slideshow():
-        slideshow()
-    else:
-        if 'selected_image_info' in ss and ss['selected_image_info']:
+        with placeholder.container():
+            slideshow()
+    elif 'selected_image_info' in ss and ss['selected_image_info']:
+        with placeholder.container():
             display_selected_image()
-        else:
+    else:
+        with placeholder.container():
             search_tags = st.text_input('Enter search tags', value='', key='text_input')
-            if search_tags and ss['last_search_tags'] != search_tags:
+            if st.button('Search'): #and ss['last_search_tags'] != search_tags:
                 ss['last_search_tags'] = search_tags
+                ss['last_serach_mode'] = ss['search_mode']
                 show_search_result()
-                st.rerun()
+            if os.path.exists('charactor-featues-idx') and os.path.exists('charactor-featues-idx.csv'):
+                # display only when index files are exist
+                st.selectbox(
+                    "search mode",
+                    ("normal", "character oriented"),
+                    key='search_mode'
+                )
             display_images()
+            if st.button('Slideshow'):
+                ss['slideshow_active'] = True
+                ss['slideshow_index'] = 0
+                placeholder.empty()
+                st.rerun()
 
 main()
