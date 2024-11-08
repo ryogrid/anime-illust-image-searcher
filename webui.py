@@ -27,6 +27,8 @@ model: Optional[Doc2Vec] = None
 index: Optional[MatrixSimilarity] = None
 dictionary: Optional[corpora.Dictionary] = None
 file_tag_index_dict: Optional[Dict[str, Dict[str, bool]]] = None
+# mapping based on tagger result
+filepath_docid_dict: Optional[Dict[str, int]] = None
 
 cfeatures_idx: Optional[MatrixSimilarity] = None
 cfeature_filepath_idx: Optional[List[str]] = None
@@ -302,18 +304,20 @@ def get_cfeatures_based_reranked_scores(final_scores, topn, required_tags: List[
             if cfeature_filepath_idx[idx] in file_tag_index_dict:
                 is_include_required = all([tag in file_tag_index_dict[cfeature_filepath_idx[idx]] for tag in required_tags])
             else:
-                # not found case is treated as include...
-                is_include_required = True
+                # not found case is ignored...
+                is_include_required = False
 
             is_not_include_exclude = False
             if cfeature_filepath_idx[idx] in file_tag_index_dict:
                 is_not_include_exclude = all([tag not in file_tag_index_dict[cfeature_filepath_idx[idx]] for tag in exclude_tags])
             else:
-                # not found case is treated as include...
-                is_not_include_exclude = True
+                # not found case is ignored...
+                is_not_include_exclude = False
 
             if diff < predictor.threshold and is_include_required and is_not_include_exclude:
-                diffs_by_cfeature_list.append((idx, 1.0 - diff))
+                # append doc_id and matching score
+                # doc_id is converted to one of index file besed on tagger result
+                diffs_by_cfeature_list.append((filepath_docid_dict[cfeature_filepath_idx[idx]], 1.0 - diff))
 
         sorted_sims = sorted(diffs_by_cfeature_list, key=lambda item: -item[1])
 
@@ -570,21 +574,21 @@ def show_search_result() -> None:
     idx_cnt: int = 0
     for doc_id, similarity in similar_docs:
         try:
-            if ss['search_mode'] == 'character oriented':
-                # special mode
-                if idx_cnt >= 10:
-                    found_fpath: str = cfeature_filepath_idx[doc_id]
-                    # empty
-                    found_img_info_splited: List[str] = []
-                else:
-                    # original top 10 images
-                    found_fpath: str = image_files_name_tags_arr[doc_id].split(',')[0]
-                    found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')[1:]
-            else:
-                found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')
-                if is_include_ng_word(found_img_info_splited):
-                    continue
-                found_fpath: str = found_img_info_splited[0]
+            # if ss['search_mode'] == 'character oriented':
+            #     # special mode
+            #     if idx_cnt >= 10:
+            #         found_fpath: str = cfeature_filepath_idx[doc_id]
+            #         # empty
+            #         found_img_info_splited: List[str] = []
+            #     else:
+            #         # original top 10 images
+            #         found_fpath: str = image_files_name_tags_arr[doc_id].split(',')[0]
+            #         found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')[1:]
+            # else:
+            found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')
+            if is_include_ng_word(found_img_info_splited):
+                continue
+            found_fpath: str = found_img_info_splited[0]
 
             if args is not None and args.rep:
                 found_fpath = found_fpath.replace(args.rep[0], args.rep[1])
@@ -592,7 +596,7 @@ def show_search_result() -> None:
                 'file_path': found_fpath,
                 'doc_id': doc_id,
                 'similarity': similarity,
-                'tags': found_img_info_splited[1:] if len(found_img_info_splited) > 1 else []
+                'tags': found_img_info_splited[1:] # if len(found_img_info_splited) > 1 else []
             })
             idx_cnt += 1
         except Exception as e:
@@ -625,12 +629,20 @@ def gen_image_files_name_tags_arr(tag_file_path) -> List[str]:
 
     return ret_arr
 
+@st.cache_resource
+def gen_filepath_docid_dict(image_files_name_tags_arr: List[str]) -> Dict[str, int]:
+    ret_dict: Dict[str, int] = {}
+    for idx, line in enumerate(image_files_name_tags_arr):
+        ret_dict[line.split(',')[0]] = idx
+    return ret_dict
+
 def load_model() -> None:
     global model
     global image_files_name_tags_arr
     global index
     global dictionary
     global file_tag_index_dict
+    global filepath_docid_dict
     # BM25 variables
     global bm25_corpus
     global bm25_doc_lengths
@@ -641,6 +653,7 @@ def load_model() -> None:
     tag_file_path: str = 'tags-wd-tagger_doc2vec_idx.csv'
     image_files_name_tags_arr = gen_image_files_name_tags_arr(tag_file_path)
     file_tag_index_dict = get_file_tag_index_dict(tag_file_path)
+    filepath_docid_dict = gen_filepath_docid_dict(image_files_name_tags_arr)
 
     model = Doc2Vec.load("doc2vec_model")
 
