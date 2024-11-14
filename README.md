@@ -112,7 +112,7 @@
   - 2 Zip the output dir
   - 3 Upload zipped file to Google Drive
   - 4 Use Google Colab env like [this](https://github.com/ryogrid/ryogridJupyterNotebooks/blob/master/tagging_colab-241104-T4-with-Tensor-files.ipynb)
-  - 5 Get tags-wd-tagger.txt and replace file pathes on it to be matched with your image files :)
+  - 5 Get tags-wd-tagger.txt and replace file pathes on it to be matched with your image files existing pathes :)
   - 6 Execute genmodel.py !
 
 ## TODO
