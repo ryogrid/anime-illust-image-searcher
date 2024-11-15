@@ -57,6 +57,7 @@
 
 ## Use Character Image Feture Based Reranking Mode (Optional)
 - Reranking based on similarity calculation with [Quantized CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip_onnx)
+  - When index data described below exists, this mode becomes selectable at webui.py
 - **Additional index data preparation is needed**
   - $ python gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH"
     - **PyPi modules on [requirements_features.txt](./requirements_features.txt) are needed insted of modules described on [requirements.txt](./requirements.txt)...**
