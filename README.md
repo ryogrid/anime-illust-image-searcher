@@ -55,6 +55,15 @@
   - 3 $ python genmodel.py --update
   - Thats's all!
 
+## Use Character Image Feture Based Reranking Mode (Optional)
+- Reranking based on similarity calculation with [Quantized CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip_onnx)
+- Additional index data preparation is needed
+  - $ python gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH"
+    - PyPi modules on [requirements_features.txt](./requirements_features.txt) are needed insted of modules described on [requirements.txt](./requirements.txt)...
+    - You should use venv (virtualenv) to use isolated python environment and 'onnx-runtime-gpu' module may be crash at your machine...
+      - If 'onnx-runtime-gpu' module is not worked, please uninstall it and install normal 'onnx-runtime' ...
+    - Best of luck!
+
 ## Usage (Binary Package of Windows at Release Page)
 - Same with above except that you need not to execute python and execution path (current path) is little bit different :)
 - First, unzip package and launch command prompt or PowerShell :)
