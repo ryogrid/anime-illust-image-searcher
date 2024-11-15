@@ -48,7 +48,7 @@
 - Procedure
   - 1 Backup all files genarated by scripts on this repo!
     - Model files on your home directory is exception :)
-  - 2 $ python --dir "IMAGE FILES CONTAINED DIR PATH" **--after "YYYY-MM-DD"**
+  - 2 $ python tagging.py --dir "IMAGE FILES CONTAINED DIR PATH" **--after "YYYY-MM-DD"**
     - Param of --dir doesn't have to be changed
     - Adding --after option is needed. Please specify date after last index data creation or update
       - Tagging target is filtered by specified date: added date (cdate attribute) <= YYYY-MM-DD
