@@ -57,11 +57,11 @@
 
 ## Use Character Image Feture Based Reranking Mode (Optional)
 - Reranking based on similarity calculation with [Quantized CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip_onnx)
-- Additional index data preparation is needed
+- **Additional index data preparation is needed**
   - $ python gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH"
-    - PyPi modules on [requirements_features.txt](./requirements_features.txt) are needed insted of modules described on [requirements.txt](./requirements.txt)...
+    - **PyPi modules on [requirements_features.txt](./requirements_features.txt) are needed insted of modules described on [requirements.txt](./requirements.txt)...**
     - You should use venv (virtualenv) to use isolated python environment and 'onnx-runtime-gpu' module may be crash at your machine...
-      - If 'onnx-runtime-gpu' module is not worked, please uninstall it and install normal 'onnx-runtime' ...
+      - If 'onnx-runtime-gpu' module is not worked, please uninstall it and install normal 'onnx-runtime'...
     - Best of luck!
 
 ## Usage (Binary Package of Windows at Release Page)
@@ -132,7 +132,8 @@
   - Current implemenataion uses all tags faialy. But there is many cases that users want to emphasize specific tags and can't get appropriate results without that!
 - [x] Fix a bug: some type of tags on tags-wd-tagger.txt can't be used on query 
 - [x] Incremental index updating at image files increasing
-- [ ] Similar image search with specifying a image file 
+- [x] Similar image search with specifying a image file
+  - This is realized at 'Character Image Feture Based Reranking Mode' practically :)
 - [x] Exporting found files list feature
   - In text file. Once you get list, many other tools and viewer you like can be used :)
 - [x] Making binary package of this app which doesn't need python environment building
