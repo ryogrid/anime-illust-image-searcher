@@ -34,12 +34,6 @@
   - This takes quite a while...
     - About 1.7 sec/file at middle spec desktop PC (GPU is not used)
       - AMD Ryzen 7 5700X 8-Core Processor 4.50 GHz
-    - You may speed up with setup libraries and drivers for using GPU :)
-      - Plese see [here](https://pytorch.org/get-started/previous-versions/#v241)
-        - Current pytorch version of this repo is v2.4.1
-      - You should install pytorch package supporting CUDA matching wich CUDA library on your machine additionaly. And cuDNN library matching wich the CUDA library should be installed also :)
-        - Example of pytorch install command line: $ pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu121
-        - If your graphic board is not supported by CUDA 12.1.x library, you should change version of torchXXXXX packages
   - Pathes and tags of image files are saved to tags-wd-tagger.txt
 - $ python genmodel.py
   - This takes quite a while...
@@ -67,8 +61,6 @@
   - Optional
     - 4 $ python gen_gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH" **--after "YYYY-MM-DD"**
   - Thats's all!
-
-
 
 ## Usage (Binary Package of Windows at Release Page)
 - Same with above except that you need not to execute python and execution path (current path) is little bit different :)
