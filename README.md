@@ -45,7 +45,7 @@
   - When index data described below exists, this mode becomes selectable at webui.py
 - **Additional index data preparation is needed**
   - $ python gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH"
-    - If 'onnx-runtime-gpu' module is not worked, please uninstall it and install normal 'onnx-runtime'...
+    - If 'onnx-runtime-gpu' module does not work, please uninstall it and install normal 'onnx-runtime'...
     - Best of luck!
 
 ## Index Data Updating
