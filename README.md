@@ -25,7 +25,10 @@
   - (Windows 11 Pro 64bit 23H2)
   - Python 3.10.4
   - pip 22.0.4
-- $ pip install -r requirements.txt 
+- $ pip install -r requirements.txt
+- (If use you want use GPU from tagging.py, please install appropriate pytorch pypi module like below)
+  - $ pip install torch==2.5.1+cu121 torchaudio==2.5.1+cu121 torchvision==0.20.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+    - CUDA version should be changed to matche with your PC environment and change index-url option for the CUDA version
 - $ python tagging.py --dir "IMAGE FILES CONTAINED DIR PATH"
   - The script searches directory structure recursively :)
   - This takes quite a while...
@@ -43,6 +46,14 @@
 - $ streamlit run webui.py
   - Search app is opend on your web browser
 
+## Use Character Image Feture Based Reranking Mode (Optional)
+- Reranking based on similarity calculation with [Quantized CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip_onnx)
+  - When index data described below exists, this mode becomes selectable at webui.py
+- **Additional index data preparation is needed**
+  - $ python gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH"
+    - If 'onnx-runtime-gpu' module is not worked, please uninstall it and install normal 'onnx-runtime'...
+    - Best of luck!
+
 ## Index Data Updating
 - When you get and store new image files, you should update index data for adding the files to be hitted at search on webui.py
 - Procedure
@@ -53,17 +64,11 @@
     - Adding --after option is needed. Please specify date after last index data creation or update
       - Tagging target is filtered by specified date: added date (cdate attribute) <= YYYY-MM-DD
   - 3 $ python genmodel.py --update
+  - Optional
+    - 4 $ python gen_gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH" **--after "YYYY-MM-DD"**
   - Thats's all!
 
-## Use Character Image Feture Based Reranking Mode (Optional)
-- Reranking based on similarity calculation with [Quantized CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip_onnx)
-  - When index data described below exists, this mode becomes selectable at webui.py
-- **Additional index data preparation is needed**
-  - $ python gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH"
-    - **PyPi modules on [requirements_features.txt](./requirements_features.txt) are needed insted of modules described on [requirements.txt](./requirements.txt)...**
-    - You should use venv (virtualenv) to use isolated python environment and 'onnx-runtime-gpu' module may be crash at your machine...
-      - If 'onnx-runtime-gpu' module is not worked, please uninstall it and install normal 'onnx-runtime'...
-    - Best of luck!
+
 
 ## Usage (Binary Package of Windows at Release Page)
 - Same with above except that you need not to execute python and execution path (current path) is little bit different :)
