@@ -2,6 +2,8 @@
 
 import datetime
 import os, time
+import shutil
+from pathlib import Path
 
 import argparse
 import traceback, sys
@@ -309,6 +311,21 @@ class Predictor:
     def process_directory(self, dir_path: str, added_date: datetime.date | None = None) -> None:
         file_list: List[str] = self.list_files_recursive(dir_path)
         print(f'{len(file_list)} files found')
+
+        # Filter files by date if specified
+        if added_date is not None:
+            file_list = self.filter_files_by_date(file_list, added_date)
+            print(f'{len(file_list)} files found after {added_date}')
+            
+            # Create backup directory with timestamp
+            
+            backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            # Backup existing index files
+            for file in Path('.').glob('charactor-featues-idx*'):
+                shutil.copy2(file, Path(backup_dir) / file.name)
+                print(f'Backed up {file} to {backup_dir}')
 
         self.embed_model = self._open_feat_model(_DEFAULT_MODEL_NAMES)
         self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES)
