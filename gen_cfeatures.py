@@ -327,6 +327,9 @@ class Predictor:
                 shutil.copy2(file, Path(backup_dir) / file.name)
                 print(f'Backed up {file} to {backup_dir}')
 
+            self.cindex = Similarity.load('charactor-featues-idx')
+            self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES) / 1.5
+
         self.embed_model = self._open_feat_model(_DEFAULT_MODEL_NAMES)
         self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES)
         self.f = open('charactor-featues-idx.csv', 'a', encoding='utf-8')
