@@ -59,7 +59,7 @@
       - Tagging target is filtered by specified date: added date (cdate attribute) <= YYYY-MM-DD
   - 3 $ python genmodel.py --update
   - Optional
-    - 4 $ python gen_gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH" **--after "YYYY-MM-DD"**
+    - 4 $ python gen_cfeatures.py --dir "IMAGE FILES CONTAINED DIR PATH" **--after "YYYY-MM-DD"**
   - Thats's all!
 
 ## Usage (Binary Package of Windows at Release Page)
