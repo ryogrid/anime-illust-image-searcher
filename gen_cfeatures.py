@@ -306,7 +306,10 @@ class Predictor:
             if self.cindex is None:
                 self.cindex = Similarity('charactor-featues-idx', [vec], num_features=768)
             else:
-                self.cindex.add_documents([vec])
+                id_and_vals: List[int, float] = [(ii, val) for ii, val in enumerate(vec)]
+                self.cindex.add_documents([id_and_vals])
+                #self.cindex.add_documents([vec])
+
 
     def process_directory(self, dir_path: str, added_date: datetime.date | None = None) -> None:
         file_list: List[str] = self.list_files_recursive(dir_path)
@@ -319,14 +322,15 @@ class Predictor:
             
             # Create backup directory with timestamp
             
-            backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            os.makedirs(backup_dir, exist_ok=True)
-            
-            # Backup existing index files
-            for file in Path('.').glob('charactor-featues-idx*'):
-                shutil.copy2(file, Path(backup_dir) / file.name)
-                print(f'Backed up {file} to {backup_dir}')
+            # backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            # os.makedirs(backup_dir, exist_ok=True)
+            #
+            # # Backup existing index files
+            # for file in Path('.').glob('charactor-featues-idx*'):
+            #     shutil.copy2(file, Path(backup_dir) / file.name)
+            #     print(f'Backed up {file} to {backup_dir}')
 
+            #self.cindex = Similarity.load('charactor-featues-idx')
             self.cindex = Similarity.load('charactor-featues-idx')
             self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES) / 1.5
 
@@ -378,6 +382,7 @@ class Predictor:
                                     self.write_to_file(fpathes[idx])
                                 # submit write to index tasks to another thread
                                 future_to_vec[executor_vec_write.submit(self.write_vecs_to_index, results)] = True
+                                #self.write_vecs_to_index(results)
                                 # for idx, line in enumerate(results_in_csv_format):
                                 #     self.write_to_file(fpathes[idx] + ',' + line)
                                 # for arr in results:
@@ -398,6 +403,7 @@ class Predictor:
                                     print('{:.4f} seconds per file'.format(time_per_file))
                                 print("", flush=True)
                                 last_cnt = cnt
+                                #self.cindex.save()
 
                         except Exception as e:
                             error_class: type = type(e)
@@ -418,7 +424,8 @@ class Predictor:
                 print(err_msg)
                 print_traceback()
                 continue
-        self.cindex.save('charactor-featues-idx')
+        #self.cindex.save('charactor-featues-idx')
+        self.cindex.save()
 
 def main(arg_str: list[str]) -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
