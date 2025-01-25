@@ -22,8 +22,8 @@
 
 ## Usage
 - (collect working confirmed environment)
-  - (Windows 11 Pro 64bit 23H2)
-  - Python 3.10.4
+  - (Windows 11 Pro 64bit 23H2 X86_64)
+  - Python 3.12.7
   - pip 22.0.4
 - $ pip install -r requirements.txt
 - (If use you want use GPU from tagging.py, please install appropriate pytorch pypi module like below)
