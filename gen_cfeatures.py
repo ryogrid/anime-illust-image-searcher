@@ -331,8 +331,42 @@ class Predictor:
             #     shutil.copy2(file, Path(backup_dir) / file.name)
             #     print(f'Backed up {file} to {backup_dir}')
 
-            #self.cindex = Similarity.load('charactor-featues-idx')
-            self.cindex = Similarity.load('charactor-featues-idx')
+
+            # find latest revision of index files (charactor-featues-idx.NUMBER)
+            files = os.listdir('.')
+
+            # Extract files matching the pattern "charactor-features-index" or "charactor-features-index.NUMBER"
+            pattern = re.compile(r"^charactor-features-index(?:\.(\d+))?$")
+            matching_files = []
+            numbers = []
+
+            for file in files:
+                match = pattern.match(file)
+                if match:
+                    matching_files.append(file)
+                    # Get the numeric part (default to 0 if not present)
+                    number = int(match.group(1)) if match.group(1) else 0
+                    numbers.append(number)
+
+            # Get the maximum number
+            max_number = max(numbers, default=0)
+
+            print('copying index files to new index files')
+
+            # copy all index data to new index files
+            if max_number == 0:
+                old_index = Similarity.load('charactor-featues-idx')
+            else:
+                old_index = Similarity.load('tmp-charactor-featues-idx' + str(max_number))
+
+            for idx in range(0, len(old_index)):
+                if self.cindex is None:
+                    self.cindex = Similarity('charactor-featues-idx' + str(max_number + 1), [old_index.vector_by_id(idx)], num_features=768)
+                else:
+                    self.cindex.add_documents([old_index.vector_by_id(idx)])
+
+            print('copying index files to new index files done')
+
             self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES) / 1.5
 
         self.embed_model = self._open_feat_model(_DEFAULT_MODEL_NAMES)
@@ -382,8 +416,8 @@ class Predictor:
                                 for idx in range(0, len(results)):
                                     self.write_to_file(fpathes[idx])
                                 # submit write to index tasks to another thread
-                                #future_to_vec[executor_vec_write.submit(self.write_vecs_to_index, results)] = True
-                                self.write_vecs_to_index(results)
+                                future_to_vec[executor_vec_write.submit(self.write_vecs_to_index, results)] = True
+                                #self.write_vecs_to_index(results)
                                 # for idx, line in enumerate(results_in_csv_format):
                                 #     self.write_to_file(fpathes[idx] + ',' + line)
                                 # for arr in results:
@@ -404,6 +438,7 @@ class Predictor:
                                     print('{:.4f} seconds per file'.format(time_per_file))
                                 print("", flush=True)
                                 last_cnt = cnt
+                                #self.cindex.save()
 
                         except Exception as e:
                             error_class: type = type(e)
@@ -413,18 +448,17 @@ class Predictor:
                             print_traceback()
                             continue
 
-        # # wait for all tasks to be finished
-        # for future in concurrent.futures.as_completed(future_to_vec):
-        #     try:
-        #         future.result()
-        #     except Exception as e:
-        #         error_class: type = type(e)
-        #         error_description: str = str(e)
-        #         err_msg: str = '%s: %s' % (error_class, error_description)
-        #         print(err_msg)
-        #         print_traceback()
-        #         continue
-        #self.cindex.save('charactor-featues-idx')
+        # wait for all tasks to be finished
+        for future in concurrent.futures.as_completed(future_to_vec):
+            try:
+                future.result()
+            except Exception as e:
+                error_class: type = type(e)
+                error_description: str = str(e)
+                err_msg: str = '%s: %s' % (error_class, error_description)
+                print(err_msg)
+                print_traceback()
+                continue
         self.cindex.save()
 
 def main(arg_str: list[str]) -> None:
