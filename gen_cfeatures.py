@@ -404,7 +404,6 @@ class Predictor:
                                     print('{:.4f} seconds per file'.format(time_per_file))
                                 print("", flush=True)
                                 last_cnt = cnt
-                                self.cindex.save()
 
                         except Exception as e:
                             error_class: type = type(e)
@@ -414,17 +413,17 @@ class Predictor:
                             print_traceback()
                             continue
 
-        # wait for all tasks to be finished
-        for future in concurrent.futures.as_completed(future_to_vec):
-            try:
-                future.result()
-            except Exception as e:
-                error_class: type = type(e)
-                error_description: str = str(e)
-                err_msg: str = '%s: %s' % (error_class, error_description)
-                print(err_msg)
-                print_traceback()
-                continue
+        # # wait for all tasks to be finished
+        # for future in concurrent.futures.as_completed(future_to_vec):
+        #     try:
+        #         future.result()
+        #     except Exception as e:
+        #         error_class: type = type(e)
+        #         error_description: str = str(e)
+        #         err_msg: str = '%s: %s' % (error_class, error_description)
+        #         print(err_msg)
+        #         print_traceback()
+        #         continue
         #self.cindex.save('charactor-featues-idx')
         self.cindex.save()
 
