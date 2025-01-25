@@ -304,7 +304,8 @@ class Predictor:
     def write_vecs_to_index(self, vecs: np.ndarray) -> bool:
         for vec in vecs:
             if self.cindex is None:
-                self.cindex = Similarity('charactor-featues-idx', [vec], num_features=768)
+                id_and_vals: List[int, float] = [(ii, val) for ii, val in enumerate(vec)]
+                self.cindex = Similarity('charactor-featues-idx', [id_and_vals], num_features=768)
             else:
                 id_and_vals: List[int, float] = [(ii, val) for ii, val in enumerate(vec)]
                 self.cindex.add_documents([id_and_vals])
@@ -381,8 +382,8 @@ class Predictor:
                                 for idx in range(0, len(results)):
                                     self.write_to_file(fpathes[idx])
                                 # submit write to index tasks to another thread
-                                future_to_vec[executor_vec_write.submit(self.write_vecs_to_index, results)] = True
-                                #self.write_vecs_to_index(results)
+                                #future_to_vec[executor_vec_write.submit(self.write_vecs_to_index, results)] = True
+                                self.write_vecs_to_index(results)
                                 # for idx, line in enumerate(results_in_csv_format):
                                 #     self.write_to_file(fpathes[idx] + ',' + line)
                                 # for arr in results:
@@ -403,7 +404,7 @@ class Predictor:
                                     print('{:.4f} seconds per file'.format(time_per_file))
                                 print("", flush=True)
                                 last_cnt = cnt
-                                #self.cindex.save()
+                                self.cindex.save()
 
                         except Exception as e:
                             error_class: type = type(e)
