@@ -19,6 +19,7 @@ import numpy as np
 from PIL import Image
 from huggingface_hub import hf_hub_download, HfFileSystem
 from gensim.similarities import Similarity
+from scipy.sparse import csr_matrix
 
 try:
     from imgutils.data import load_images, ImageTyping
@@ -294,9 +295,11 @@ class Predictor:
             return None
 
     def get_image_feature(self, file_path: str) -> np.ndarray:
-        if self.cindex is None:
-            self.cindex = Similarity.load('charactor-featues-idx')
+        if self.threshold == -1.0:
             self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES) / 1.5
+        # if self.cindex is None:
+        #     self.cindex = Similarity.load('charactor-featues-idx')
+        #     self.threshold = self.ccip_default_threshold(_DEFAULT_MODEL_NAMES) / 1.5
 
         img: np.ndarray = self.gen_image_ndarray(file_path)
         return self.predict([img])[0]
@@ -311,6 +314,25 @@ class Predictor:
                 self.cindex.add_documents([id_and_vals])
                 #self.cindex.add_documents([vec])
 
+    def get_current_cfeature_number(self) -> int:
+        # find latest revision of index files (charactor-featues-idx.NUMBER)
+        files = os.listdir('.')
+
+        # Extract files matching the pattern "charactor-features-index" or "charactor-features-index.NUMBER"
+        pattern = re.compile(r'^charactor-featues-idx(\d*)$')
+        numbers = []
+
+        for file in files:
+            match = pattern.match(file)
+            if match:
+                # Get the numeric part (default to 0 if not present)
+                number = int(match.group(1)) if match.group(1) else 0
+                numbers.append(number)
+
+        # Get the maximum number
+        max_number = max(numbers)
+
+        return max_number
 
     def process_directory(self, dir_path: str, added_date: datetime.date | None = None) -> None:
         file_list: List[str] = self.list_files_recursive(dir_path)
@@ -321,44 +343,29 @@ class Predictor:
             file_list = self.filter_files_by_date(file_list, added_date)
             print(f'{len(file_list)} files found after {added_date}')
             
-            # Create backup directory with timestamp
-            backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            os.makedirs(backup_dir, exist_ok=True)
-            # Backup existing index files
-            for file in Path('.').glob('charactor-featues-idx*'):
-                shutil.copy2(file, Path(backup_dir) / file.name)
-                print(f'Backed up {file} to {backup_dir}')
+            # # Create backup directory with timestamp
+            # backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            # os.makedirs(backup_dir, exist_ok=True)
+            # # Backup existing index files
+            # for file in Path('.').glob('charactor-featues-idx*'):
+            #     shutil.copy2(file, Path(backup_dir) / file.name)
+            #     print(f'Backed up {file} to {backup_dir}')
 
-            # find latest revision of index files (charactor-featues-idx.NUMBER)
-            files = os.listdir('.')
-
-            # Extract files matching the pattern "charactor-features-index" or "charactor-features-index.NUMBER"
-            pattern = re.compile(r'^charactor-featues-idx(\d*)$')
-            numbers = []
-
-            for file in files:
-                match = pattern.match(file)
-                if match:
-                    # Get the numeric part (default to 0 if not present)
-                    number = int(match.group(1)) if match.group(1) else 0
-                    numbers.append(number)
-
-            # Get the maximum number
-            max_number = max(numbers)
+            max_number = self.get_current_cfeature_number()
 
             print('copying index files to new index files')
 
             # copy all index data to new index files
             if max_number == 0:
-                old_index = Similarity.load('charactor-featues-idx')
+                old_index = Similarity.load('charactor-featues-idx', mmap=None)
             else:
-                old_index = Similarity.load('tmp-charactor-featues-idx' + str(max_number))
+                old_index = Similarity.load('tmp-charactor-featues-idx' + str(max_number), mmap=None)
 
             for idx in range(0, len(old_index)):
                 if self.cindex is None:
-                    self.cindex = Similarity('charactor-featues-idx' + str(max_number + 1), [old_index.vector_by_id(idx)], num_features=768)
+                    self.cindex = Similarity('charactor-featues-idx' + str(max_number + 1), [csr_matrix(old_index.vector_by_id(idx)).toarray().squeeze()], num_features=768)
                 else:
-                    self.cindex.add_documents([old_index.vector_by_id(idx)])
+                    self.cindex.add_documents([csr_matrix(old_index.vector_by_id(idx)).toarray().squeeze()])
 
             print('copying index files to new index files done')
 

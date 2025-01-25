@@ -7,6 +7,7 @@ from gensim.models import Doc2Vec
 from gensim.similarities import MatrixSimilarity
 from numpy import ndarray
 from streamlit.runtime.state import SessionStateProxy
+from icecream import ic
 import pickle
 
 import numpy as np
@@ -256,6 +257,11 @@ def get_cfeatures_based_reranked_scores(final_scores, topn, required_tags: List[
     global cfeatures_idx
     global predictor
 
+    if predictor is None:
+        predictor = Predictor()
+        predictor.embed_model = predictor._open_feat_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
+        predictor.metric_model = predictor._open_metric_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
+
     if cfeature_filepath_idx is None:
         cfeature_filepath_idx = []
         with open('charactor-featues-idx.csv', 'r', encoding='utf-8') as f:
@@ -263,30 +269,12 @@ def get_cfeatures_based_reranked_scores(final_scores, topn, required_tags: List[
                 cfeature_filepath_idx.append(line.strip())
 
     if cfeatures_idx is None:
-        # find latest revision of index files (charactor-featues-idx.NUMBER)
-        files = os.listdir('.')
-        # Extract files matching the pattern "charactor-features-index" or "charactor-features-index.NUMBER"
-        pattern = re.compile(r'^charactor-featues-idx(\d*)$')
-        numbers = []
-
-        for file in files:
-            match = pattern.match(file)
-            if match:
-                # Get the numeric part (default to 0 if not present)
-                number = int(match.group(1)) if match.group(1) else 0
-                numbers.append(number)
-
-        # Get the maximum number
-        max_number = max(numbers)
+        # get latest revision of index files (charactor-featues-idx.NUMBER)
+        max_number = predictor.get_current_cfeature_number()
         if max_number == 0:
             cfeatures_idx = MatrixSimilarity.load('charactor-featues-idx')
         else:
             cfeatures_idx = MatrixSimilarity.load('charactor-featues-idx' + str(max_number))
-
-    if predictor is None:
-        predictor = Predictor()
-        predictor.embed_model = predictor._open_feat_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
-        predictor.metric_model = predictor._open_metric_model(_DEFAULT_MODEL_NAMES, executor='CPUExecutionProvider')
 
     # when length of final_scores is larger than 10, calculate mean vector of cfeatures from top10 images
     # and calculate similarity between the mean vector and all images
@@ -316,6 +304,8 @@ def get_cfeatures_based_reranked_scores(final_scores, topn, required_tags: List[
         diffs_by_cfeature_list: List[Tuple[int, float]] = []
 
         for idx in range(0, len(cfeature_filepath_idx)):
+            # ic(cfeatures_idx.vector_by_id(idx))
+            # ic(len(cfeatures_idx.vector_by_id(idx)))
             diff: float = predictor.ccip_difference(cfeatures_idx.vector_by_id(idx), weighted_mean_cfeatures)
 
             is_include_required = False
