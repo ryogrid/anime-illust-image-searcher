@@ -322,34 +322,29 @@ class Predictor:
             print(f'{len(file_list)} files found after {added_date}')
             
             # Create backup directory with timestamp
-            
-            # backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            # os.makedirs(backup_dir, exist_ok=True)
-            #
-            # # Backup existing index files
-            # for file in Path('.').glob('charactor-featues-idx*'):
-            #     shutil.copy2(file, Path(backup_dir) / file.name)
-            #     print(f'Backed up {file} to {backup_dir}')
-
+            backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            os.makedirs(backup_dir, exist_ok=True)
+            # Backup existing index files
+            for file in Path('.').glob('charactor-featues-idx*'):
+                shutil.copy2(file, Path(backup_dir) / file.name)
+                print(f'Backed up {file} to {backup_dir}')
 
             # find latest revision of index files (charactor-featues-idx.NUMBER)
             files = os.listdir('.')
 
             # Extract files matching the pattern "charactor-features-index" or "charactor-features-index.NUMBER"
-            pattern = re.compile(r"^charactor-features-index(?:\.(\d+))?$")
-            matching_files = []
+            pattern = re.compile(r'^charactor-featues-idx(\d*)$')
             numbers = []
 
             for file in files:
                 match = pattern.match(file)
                 if match:
-                    matching_files.append(file)
                     # Get the numeric part (default to 0 if not present)
                     number = int(match.group(1)) if match.group(1) else 0
                     numbers.append(number)
 
             # Get the maximum number
-            max_number = max(numbers, default=0)
+            max_number = max(numbers)
 
             print('copying index files to new index files')
 
@@ -417,11 +412,6 @@ class Predictor:
                                     self.write_to_file(fpathes[idx])
                                 # submit write to index tasks to another thread
                                 future_to_vec[executor_vec_write.submit(self.write_vecs_to_index, results)] = True
-                                #self.write_vecs_to_index(results)
-                                # for idx, line in enumerate(results_in_csv_format):
-                                #     self.write_to_file(fpathes[idx] + ',' + line)
-                                # for arr in results:
-                                #     print(arr.astype(float))
                                 ndarrs = []
                                 fpathes = []
                                 failed_cnt = 0

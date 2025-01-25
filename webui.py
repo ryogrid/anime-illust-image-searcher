@@ -1,5 +1,5 @@
 import math
-import os
+import os, re
 import sys
 
 from gensim import corpora
@@ -263,7 +263,25 @@ def get_cfeatures_based_reranked_scores(final_scores, topn, required_tags: List[
                 cfeature_filepath_idx.append(line.strip())
 
     if cfeatures_idx is None:
-        cfeatures_idx = MatrixSimilarity.load('charactor-featues-idx')
+        # find latest revision of index files (charactor-featues-idx.NUMBER)
+        files = os.listdir('.')
+        # Extract files matching the pattern "charactor-features-index" or "charactor-features-index.NUMBER"
+        pattern = re.compile(r'^charactor-featues-idx(\d*)$')
+        numbers = []
+
+        for file in files:
+            match = pattern.match(file)
+            if match:
+                # Get the numeric part (default to 0 if not present)
+                number = int(match.group(1)) if match.group(1) else 0
+                numbers.append(number)
+
+        # Get the maximum number
+        max_number = max(numbers)
+        if max_number == 0:
+            cfeatures_idx = MatrixSimilarity.load('charactor-featues-idx')
+        else:
+            cfeatures_idx = MatrixSimilarity.load('charactor-featues-idx' + str(max_number))
 
     if predictor is None:
         predictor = Predictor()
@@ -574,17 +592,6 @@ def show_search_result() -> None:
     idx_cnt: int = 0
     for doc_id, similarity in similar_docs:
         try:
-            # if ss['search_mode'] == 'character oriented':
-            #     # special mode
-            #     if idx_cnt >= 10:
-            #         found_fpath: str = cfeature_filepath_idx[doc_id]
-            #         # empty
-            #         found_img_info_splited: List[str] = []
-            #     else:
-            #         # original top 10 images
-            #         found_fpath: str = image_files_name_tags_arr[doc_id].split(',')[0]
-            #         found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')[1:]
-            # else:
             found_img_info_splited: List[str] = image_files_name_tags_arr[doc_id].split(',')
             if is_include_ng_word(found_img_info_splited):
                 continue
@@ -678,10 +685,6 @@ def load_model() -> None:
         bm25_idf = ss['bm25_idf']
         bm25_D = ss['bm25_D']
 
-
-
-
-
 def main() -> None:
     global search_tags
     global args
@@ -708,7 +711,7 @@ def main() -> None:
                 ss['last_search_tags'] = search_tags
                 ss['last_serach_mode'] = ss['search_mode']
                 show_search_result()
-            if os.path.exists('charactor-featues-idx') and os.path.exists('charactor-featues-idx.csv'):
+            if os.path.exists('charactor-featues-idx.csv'):
                 # display only when index files are exist
                 st.selectbox(
                     "search mode",
