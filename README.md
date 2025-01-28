@@ -116,8 +116,7 @@
   - **I thank to great works of SmilingWolf**
 - Character visual similarity calculation
   - [this code](https://huggingface.co/spaces/deepghs/ccip/blob/f7d50a4f5dd3d4681984187308d70839ff0d3f5b/ccip.py) was used as reference when implemnting model execution
-  - [Quantized CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip_onnx) is used
-    - **(This metrics based reranking mode exists. But usage is not wrote here yet...)**  
+  - [Quantized CCIP(Contrastive anime Character Image Pre-training) model](https://huggingface.co/deepghs/ccip_onnx) is used
   - **I thank to great works of deepghs community members**
 
 ## For Busy People
