@@ -343,13 +343,13 @@ class Predictor:
             file_list = self.filter_files_by_date(file_list, added_date)
             print(f'{len(file_list)} files found after {added_date}')
             
-            # # Create backup directory with timestamp
-            # backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            # os.makedirs(backup_dir, exist_ok=True)
-            # # Backup existing index files
-            # for file in Path('.').glob('charactor-featues-idx*'):
-            #     shutil.copy2(file, Path(backup_dir) / file.name)
-            #     print(f'Backed up {file} to {backup_dir}')
+            # Create backup directory with timestamp
+            backup_dir = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            os.makedirs(backup_dir, exist_ok=True)
+            # Backup existing index files
+            for file in Path('.').glob('charactor-featues-idx*'):
+                shutil.copy2(file, Path(backup_dir) / file.name)
+                print(f'Backed up {file} to {backup_dir}')
 
             max_number = self.get_current_cfeature_number()
 
@@ -359,7 +359,7 @@ class Predictor:
             if max_number == 0:
                 old_index = Similarity.load('charactor-featues-idx', mmap=None)
             else:
-                old_index = Similarity.load('tmp-charactor-featues-idx' + str(max_number), mmap=None)
+                old_index = Similarity.load('charactor-featues-idx' + str(max_number), mmap=None)
 
             for idx in range(0, len(old_index)):
                 if self.cindex is None:
