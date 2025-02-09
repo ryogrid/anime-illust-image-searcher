@@ -34,6 +34,13 @@
   - This takes quite a while...
     - About 1.7 sec/file at middle spec desktop PC (GPU is not used)
       - AMD Ryzen 7 5700X 8-Core Processor 4.50 GHz
+    - About 0.5sec/file with GPU
+      - GeForce GTX 1660 SUPER
+        - Released at 2009/10
+        - VRAM: 6GB
+        - CUDA core: 1408 units
+        - Core frequrncy: 1785MHz (boost mode)
+        - Theorical peak flops (fp32): about 5.02TFLOPS
   - Pathes and tags of image files are saved to tags-wd-tagger.txt
 - $ python genmodel.py
   - This takes quite a while...
@@ -109,8 +116,7 @@
   - **I thank to great works of SmilingWolf**
 - Character visual similarity calculation
   - [this code](https://huggingface.co/spaces/deepghs/ccip/blob/f7d50a4f5dd3d4681984187308d70839ff0d3f5b/ccip.py) was used as reference when implemnting model execution
-  - [Quantized CCIP(Contrastive Anime Character Image Pre-Training) model](https://huggingface.co/deepghs/ccip_onnx) is used
-    - **(This metrics based reranking mode exists. But usage is not wrote here yet...)**  
+  - [Quantized CCIP(Contrastive anime Character Image Pre-training) model](https://huggingface.co/deepghs/ccip_onnx) is used
   - **I thank to great works of deepghs community members**
 
 ## For Busy People
