@@ -398,8 +398,13 @@ def init_session_state(data: List[Any] = []) -> None:
         ss['selected_image_info'] = None
     if 'search_mode' not in ss:
         ss['search_mode'] = 'normal'
+    if 'max_display_images' not in ss:
+        ss['max_display_images'] = None
+    if 'original_data' not in ss:
+        ss['original_data'] = []
     if len(data) > 0:
         ss['data'] = data
+        #ss['original_data'] = data
         ss['page_index'] = 0
         return
 
@@ -451,10 +456,11 @@ def convert_data_structure(image_info_list: List[Dict[str, Any]]) -> List[List[L
 
 def get_all_images() -> List[str]:
     images: List[str] = []
-    for page in ss['data']:
-        for row in page:
-            for image_info in row:
-                images.append(image_info['file_path'])
+    if 'data' in ss and len(ss['data']) > 0:
+        for page in ss['data']:
+            for row in page:
+                for image_info in row:
+                    images.append(image_info['file_path'])
     return images
 
 def slideshow() -> None:
@@ -480,7 +486,7 @@ def slideshow() -> None:
         ss['text_input'] = ss['last_search_tags']
         ss['search_mode'] = ss['last_serach_mode']
         st.rerun()
-    #else:
+    
     time.sleep(5)
     ss['slideshow_index'] = (ss['slideshow_index'] + 1) % len(images)
     st.rerun()
@@ -574,6 +580,7 @@ def display_selected_image() -> None:
 def show_search_result() -> None:
     global image_files_name_tags_arr
     global args
+    global ss
 
     load_model()
     similar_docs: List[Tuple[int, float]] = find_similar_documents(search_tags, topn=800)
@@ -602,7 +609,13 @@ def show_search_result() -> None:
             continue
 
     pages: List[List[List[Dict[str, Any]]]] = convert_data_structure(found_docs_info)
+    
+    ss['original_data'] = pages
     init_session_state(pages)
+    
+    # Reset the max display images input when performing a new search
+    ss['max_display_images'] = None
+    ss['display_limit_input'] = ""
 
 @st.cache_resource
 def get_file_tag_index_dict(file_path:str) -> Dict[str, Dict[str, bool]]:
@@ -675,6 +688,31 @@ def load_model() -> None:
         bm25_idf = ss['bm25_idf']
         bm25_D = ss['bm25_D']
 
+def limit_display_results(max_items: int) -> None:
+    """Limit the number of images displayed to the specified maximum."""
+    global ss
+    
+    if 'original_data' not in ss or not ss['original_data']:
+        return
+    
+    # If max_items is invalid, use the original data
+    if max_items <= 0 or max_items >= len(ss['original_data']):
+        return
+    
+    # Create a flattened list of all image items from the original data
+    all_items = []
+    for page in ss['original_data']:
+        for row in page:
+            for item in row:
+                all_items.append(item)
+    
+    # Limit to the specified number of items
+    limited_items = all_items[:max_items]
+    
+    # Convert back to the pages/rows/cols structure
+    ss['data'] = convert_data_structure(limited_items)
+    ss['page_index'] = 0
+
 def main() -> None:
     global search_tags
     global args
@@ -696,11 +734,41 @@ def main() -> None:
             display_selected_image()
     else:
         with placeholder.container():
+            # Search input and button
             search_tags = st.text_input('Enter search tags', value='', key='text_input')
-            if st.button('Search'): #and ss['last_search_tags'] != search_tags:
+            if st.button('Search'):
                 ss['last_search_tags'] = search_tags
                 ss['last_serach_mode'] = ss['search_mode']
+                ss['display_limit_input'] = ""
                 show_search_result()
+            
+
+            # Initialize the display_limit_input if not present
+            if 'display_limit_input' not in ss:
+                ss['display_limit_input'] = ""
+            
+            # Handle placeholder text
+            display_value = ss['display_limit_input']
+            
+            # Create the input field
+            limit_input = st.text_input(
+                'max display images limit (integer)',
+                value=display_value,
+            )            
+            
+            # Add apply button for the limit
+            if st.button('Apply Limit'):
+                # Only apply if there's a valid numeric input
+                if limit_input and limit_input != "":
+                    try:
+                        max_items = int(limit_input)
+                        ss['max_display_images'] = max_items
+                        ss['display_limit_input'] = limit_input
+                        limit_display_results(max_items)
+                        st.rerun()
+                    except ValueError:
+                        st.error("Please enter a valid number")
+            
             if os.path.exists('charactor-featues-idx.csv'):
                 # display only when index files are exist
                 st.selectbox(
@@ -708,7 +776,9 @@ def main() -> None:
                     ("normal", "character oriented"),
                     key='search_mode'
                 )
+            
             display_images()
+            
             if st.button('Slideshow'):
                 ss['slideshow_active'] = True
                 ss['slideshow_index'] = 0
